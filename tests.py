@@ -1,14 +1,18 @@
+import os
 import unittest
-from nectar import Nectar
+from nectarpy import Nectar
+from dotenv import load_dotenv
 
-# Test Vector
-API_SECRET = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+load_dotenv()
+
+API_SECRET = os.getenv("API_SECRET")
+EVM_NODE = os.getenv("EVM_NODE")
 
 
 class TestNectar(unittest.TestCase):
 
     def test_count_query(self):
-        nectar = Nectar(API_SECRET)
+        nectar = Nectar(API_SECRET, EVM_NODE)
         result = nectar.query(
             aggregate_type="count",
             aggregate_column="smoking",
@@ -18,7 +22,7 @@ class TestNectar(unittest.TestCase):
         print("-> count result:", result)
 
     def test_mean_query(self):
-        nectar = Nectar(API_SECRET)
+        nectar = Nectar(API_SECRET, EVM_NODE)
         result = nectar.query(
             aggregate_type="mean",
             aggregate_column="age",
@@ -28,7 +32,7 @@ class TestNectar(unittest.TestCase):
         print("-> mean result:", result)
 
     def test_variance_query(self):
-        nectar = Nectar(API_SECRET)
+        nectar = Nectar(API_SECRET, EVM_NODE)
         result = nectar.query(
             aggregate_type="variance",
             aggregate_column="heart_rate",
@@ -38,7 +42,7 @@ class TestNectar(unittest.TestCase):
         print("-> variance result:", result)
 
     def test_invalid_query(self):
-        nectar = Nectar(API_SECRET)
+        nectar = Nectar(API_SECRET, EVM_NODE)
         with self.assertRaises(ValueError):
             nectar.query(
                 aggregate_type="invalid-type",  # invalid
@@ -48,7 +52,7 @@ class TestNectar(unittest.TestCase):
         print("-> query failed as expected")
 
     def test_query_with_filter(self):
-        nectar = Nectar(API_SECRET)
+        nectar = Nectar(API_SECRET, EVM_NODE)
         filters = '[ { "column": "smoking", "filter": "=", "value": false } ]'
         result = nectar.query(
             aggregate_type="count",

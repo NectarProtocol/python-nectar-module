@@ -8,8 +8,8 @@ from web3.gas_strategies.rpc import rpc_gas_price_strategy
 current_dir = os.path.dirname(__file__)
 
 BLOCKCHAIN_URL = "http://127.0.0.1:8545/"
-NT_CONTRACT_ADDR = "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0"
-QM_CONTRACT_ADDR = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"
+NT_CONTRACT_ADDR = "0x941c42263080E3fec35F52A344DfCa0bEda103F4"
+QM_CONTRACT_ADDR = "0xE6f79f5fC9752Aa833c9aA0d4C1BE3cE2AfF746E"
 
 
 class Nectar:

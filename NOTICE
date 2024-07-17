@@ -1,0 +1,13 @@
+NOTICE
+
+nectarpy
+
+Copyright 2024 Tamarin Health.
+
+## Included Third-Party Library:
+
+Library Name: web3
+License: MIT License
+Copyright (c) 2016-2024 The Ethereum Foundation
+Source: https://github.com/ethereum/web3.py
+License Text Link: https://opensource.org/license/mit/
