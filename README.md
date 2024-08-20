@@ -1,6 +1,6 @@
 # PYTHON NECTAR MODULE
 
-This is a Python API module designed to run queries on Nectar.
+This is a Python API module designed to run queries on Nectar, add bucket information, and set policies.
 
 ## Install
 

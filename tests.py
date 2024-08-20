@@ -62,6 +62,32 @@ class TestNectar(unittest.TestCase):
         self.assertTrue(isinstance(result, float))
         print("-> count result with filter:", result)
 
+    def test_add_policy(self):
+        nectar = Nectar(API_SECRET, EVM_NODE)
+        price = 123
+        policy_id = nectar.add_policy(
+            allowed_categories=["category1"],
+            allowed_addresses=[],
+            allowed_columns=["column1"],
+            valid_days=1000,
+            price=price,
+        )
+        policy = nectar.read_policy(policy_id)
+        self.assertEqual(policy["price"], price)
+        print("-> successfully added policy")
+
+    def test_add_bucket(self):
+        nectar = Nectar(API_SECRET, EVM_NODE)
+        node_address = "node.example.com"
+        bucket_id = nectar.add_bucket(
+            policy_ids=[123],
+            data_format="std1",
+            node_address=node_address,
+        )
+        bucket = nectar.read_bucket(bucket_id)
+        self.assertEqual(bucket["node_address"], node_address)
+        print("-> successfully added bucket")
+
 
 if __name__ == "__main__":
     unittest.main()
