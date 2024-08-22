@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="nectarpy",
-    version="0.7.0",
+    version="0.8.0",
     packages=find_packages(),
     include_package_data=True,
     license="Apache License 2.0",
@@ -21,5 +21,5 @@ setup(
         "Operating System :: OS Independent",
     ],
     python_requires=">=3.8, <4",
-    install_requires=["web3", "python-dotenv"],
+    install_requires=["web3<7.0.0", "python-dotenv"],
 )
