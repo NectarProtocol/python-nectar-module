@@ -88,7 +88,7 @@ class Nectar:
         query_receipt = self.web3.eth.wait_for_transaction_receipt(query_hash)
         return user_index, query_receipt
 
-    def wait_for_query_result(self, user_index: str) -> float:
+    def wait_for_query_result(self, user_index: str) -> str:
         """Waits for the query result to be available"""
         print("waiting for mpc result...")
         result = ""
@@ -98,7 +98,7 @@ class Nectar:
             ).call()
             time.sleep(5)
             result = query[3]
-        return float(result)
+        return result
 
     def query(self, aggregate_type: str, aggregate_column: str, filters: str) -> float:
         """Approves a payment, sends a query, then fetches the result"""
@@ -110,7 +110,22 @@ class Nectar:
         )
         self.approve_payment()
         user_index, _ = self.pay_query(query_str)
-        return self.wait_for_query_result(user_index)
+        query_res = self.wait_for_query_result(user_index)
+        return float(query_res)
+
+    def train_model(self, type: str, parameters: str, filters: str) -> dict:
+        """Approves a payment, sends a training request, then fetches the result"""
+        query_str = json.dumps(
+            {
+                "operation": type,
+                "parameters": json.loads(parameters),
+                "filters": json.loads(filters),
+            }
+        )
+        self.approve_payment()
+        user_index, _ = self.pay_query(query_str)
+        query_res = self.wait_for_query_result(user_index)
+        return json.loads(query_res)
 
     def add_policy(
         self,

@@ -53,7 +53,7 @@ class TestNectar(unittest.TestCase):
 
     def test_query_with_filter(self):
         nectar = Nectar(API_SECRET, EVM_NODE)
-        filters = '[ { "column": "smoking", "filter": "=", "value": false } ]'
+        filters = '[{"column":"smoking","filter":"=","value":false}]'
         result = nectar.query(
             aggregate_type="count",
             aggregate_column="smoking",
@@ -61,6 +61,16 @@ class TestNectar(unittest.TestCase):
         )
         self.assertTrue(isinstance(result, float))
         print("-> count result with filter:", result)
+
+    def test_linear_regression(self):
+        nectar = Nectar(API_SECRET, EVM_NODE)
+        result = nectar.train_model(
+            type="linear-regression",
+            parameters='{"xcols":["heart_rate","age"],"ycol":"height"}',
+            filters="[]",
+        )
+        self.assertTrue(isinstance(result, dict))
+        print("-> linear regression result:", result)
 
     def test_add_policy(self):
         nectar = Nectar(API_SECRET, EVM_NODE)
