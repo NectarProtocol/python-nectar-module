@@ -47,12 +47,11 @@ class Nectar:
         self.EoaBond = self.web3.eth.contract(address=eb_contract_addr, abi=eb_abi)
         self.qm_contract_addr = qm_contract_addr
 
-    def approve_payment(self) -> TxReceipt:
+    def approve_payment(self, amount: int) -> TxReceipt:
         """Approves an EC20 query payment"""
         print("approving query payment...")
-        query_price = self.QueryManager.functions.queryPrice().call()
         approve_tx = self.NToken.functions.approve(
-            self.qm_contract_addr, query_price
+            self.qm_contract_addr, amount
         ).build_transaction(
             {
                 "from": self.account["address"],
@@ -65,7 +64,15 @@ class Nectar:
         approve_hash = self.web3.eth.send_raw_transaction(approve_signed.rawTransaction)
         return self.web3.eth.wait_for_transaction_receipt(approve_hash)
 
-    def pay_query(self, query: str) -> tuple:
+    def pay_query(
+        self,
+        query: str,
+        price: int,
+        use_allowlists: list,
+        access_indexes: list,
+        bucket_ids: list,
+        policy_indexes: list,
+    ) -> tuple:
         """Sends a query along with a payment"""
         print("sending query with payment...")
         user_index = self.QueryManager.functions.getUserIndex(
@@ -74,7 +81,11 @@ class Nectar:
         query_tx = self.QueryManager.functions.payQuery(
             user_index,
             query,
-            "",
+            use_allowlists,
+            access_indexes,
+            price,
+            bucket_ids,
+            policy_indexes,
         ).build_transaction(
             {
                 "from": self.account["address"],
@@ -97,10 +108,29 @@ class Nectar:
                 self.account["address"], user_index
             ).call()
             time.sleep(5)
-            result = query[3]
+            result = query[2]
         return result
 
-    def query(self, aggregate_type: str, aggregate_column: str, filters: str) -> float:
+    def get_pay_amount(self, bucket_ids: list, policy_indexes: list) -> int:
+        policy_ids = []
+        for i in range(len(bucket_ids)):
+            p = self.EoaBond.functions.getPolicyIds(bucket_ids[i]).call()[
+                policy_indexes[i]
+            ]
+            policy_ids.append(p)
+        prices = [self.read_policy(p)["price"] for p in policy_ids]
+        return sum(prices)
+
+    def query(
+        self,
+        aggregate_type: str,
+        aggregate_column: str,
+        filters: str,
+        use_allowlists: list,
+        access_indexes: list,
+        bucket_ids: list,
+        policy_indexes: list,
+    ) -> float:
         """Approves a payment, sends a query, then fetches the result"""
         query_str = json.dumps(
             {
@@ -108,12 +138,24 @@ class Nectar:
                 "filters": json.loads(filters),
             }
         )
-        self.approve_payment()
-        user_index, _ = self.pay_query(query_str)
+        price = self.get_pay_amount(bucket_ids, policy_indexes)
+        self.approve_payment(price)
+        user_index, _ = self.pay_query(
+            query_str, price, use_allowlists, access_indexes, bucket_ids, policy_indexes
+        )
         query_res = self.wait_for_query_result(user_index)
         return float(query_res)
 
-    def train_model(self, type: str, parameters: str, filters: str) -> dict:
+    def train_model(
+        self,
+        type: str,
+        parameters: str,
+        filters: str,
+        use_allowlists: list,
+        access_indexes: list,
+        bucket_ids: list,
+        policy_indexes: list,
+    ) -> dict:
         """Approves a payment, sends a training request, then fetches the result"""
         query_str = json.dumps(
             {
@@ -122,8 +164,11 @@ class Nectar:
                 "filters": json.loads(filters),
             }
         )
-        self.approve_payment()
-        user_index, _ = self.pay_query(query_str)
+        price = self.get_pay_amount(bucket_ids, policy_indexes)
+        self.approve_payment(price)
+        user_index, _ = self.pay_query(
+            query_str, price, use_allowlists, access_indexes, bucket_ids, policy_indexes
+        )
         query_res = self.wait_for_query_result(user_index)
         return json.loads(query_res)
 
@@ -162,7 +207,7 @@ class Nectar:
 
     def read_policy(self, policy_id: int) -> dict:
         """Fetches a policy on the blockchain"""
-        other_policy = self.EoaBond.functions.policies(policy_id).call()
+        policy_data = self.EoaBond.functions.policies(policy_id).call()
         return {
             "policy_id": policy_id,
             "allowed_categories": self.EoaBond.functions.getAllowedCategories(
@@ -174,10 +219,10 @@ class Nectar:
             "allowed_columns": self.EoaBond.functions.getAllowedColumns(
                 policy_id
             ).call(),
-            "exp_date": other_policy[0],
-            "price": other_policy[1],
-            "owner": other_policy[2],
-            "deactivated": other_policy[3],
+            "exp_date": policy_data[0],
+            "price": policy_data[1],
+            "owner": policy_data[2],
+            "deactivated": policy_data[3],
         }
 
     def add_bucket(
@@ -206,12 +251,12 @@ class Nectar:
 
     def read_bucket(self, bucket_id: int) -> dict:
         """Fetches a bucket from the blockchain"""
-        other_bucket = self.EoaBond.functions.buckets(bucket_id).call()
+        bucket_data = self.EoaBond.functions.buckets(bucket_id).call()
         return {
             "bucket_id": bucket_id,
             "policy_ids": self.EoaBond.functions.getPolicyIds(bucket_id).call(),
-            "data_format": other_bucket[0],
-            "node_address": other_bucket[1],
-            "owner": other_bucket[2],
-            "deactivated": other_bucket[3],
+            "data_format": bucket_data[0],
+            "node_address": bucket_data[1],
+            "owner": bucket_data[2],
+            "deactivated": bucket_data[3],
         }
