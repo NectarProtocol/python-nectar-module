@@ -7,6 +7,7 @@ load_dotenv()
 
 API_SECRET = os.getenv("API_SECRET")
 EVM_NODE = os.getenv("EVM_NODE")
+TEE_DATA_URL = os.getenv("TEE_DATA_URL")
 
 
 def setup_bucket(nectar: Nectar) -> int:
@@ -20,7 +21,7 @@ def setup_bucket(nectar: Nectar) -> int:
     bucket_id = nectar.add_bucket(
         policy_ids=[policy_id],
         data_format="std1",
-        node_address="",
+        node_address=TEE_DATA_URL,
     )
     return bucket_id
 
