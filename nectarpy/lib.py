@@ -30,7 +30,7 @@ class Nectar:
         with open(os.path.join(current_dir, "QueryManager.json")) as f:
             qm_info = json.load(f)
         qm_abi = qm_info["abi"]
-        with open(os.path.join(current_dir, "NToken.json")) as f:
+        with open(os.path.join(current_dir, "USDC.json")) as f:
             nt_info = json.load(f)
         nt_abi = nt_info["abi"]
         with open(os.path.join(current_dir, "EoaBond.json")) as f:
@@ -42,7 +42,7 @@ class Nectar:
             "address": self.web3.eth.account.from_key(api_secret).address,
         }
         self.web3.eth.set_gas_price_strategy(rpc_gas_price_strategy)
-        self.NToken = self.web3.eth.contract(address=nt_contract_addr, abi=nt_abi)
+        self.USDC = self.web3.eth.contract(address=nt_contract_addr, abi=nt_abi)
         self.QueryManager = self.web3.eth.contract(address=qm_contract_addr, abi=qm_abi)
         self.EoaBond = self.web3.eth.contract(address=eb_contract_addr, abi=eb_abi)
         self.qm_contract_addr = qm_contract_addr
@@ -50,7 +50,7 @@ class Nectar:
     def approve_payment(self, amount: int) -> TxReceipt:
         """Approves an EC20 query payment"""
         print("approving query payment...")
-        approve_tx = self.NToken.functions.approve(
+        approve_tx = self.USDC.functions.approve(
             self.qm_contract_addr, amount
         ).build_transaction(
             {
