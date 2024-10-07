@@ -10,23 +10,15 @@ from web3.gas_strategies.rpc import rpc_gas_price_strategy
 
 current_dir = os.path.dirname(__file__)
 
-BLOCKCHAIN_URL = "http://127.0.0.1:8545/"
-NT_CONTRACT_ADDR = "0x941c42263080E3fec35F52A344DfCa0bEda103F4"
-QM_CONTRACT_ADDR = "0xE6f79f5fC9752Aa833c9aA0d4C1BE3cE2AfF746E"
-EB_CONTRACT_ADDR = "0x2741607B0aF9C40c72a07d5e66f6d09B3da1d4D6"
-
 
 class Nectar:
     """Client for sending queries to Nectar"""
 
-    def __init__(
-        self,
-        api_secret: str,
-        blockchain_url: str = BLOCKCHAIN_URL,
-        nt_contract_addr: str = NT_CONTRACT_ADDR,
-        qm_contract_addr: str = QM_CONTRACT_ADDR,
-        eb_contract_addr: str = EB_CONTRACT_ADDR,
-    ):
+    def __init__(self, api_secret: str, mode: str = "localhost"):
+        print("network mode:", mode)
+        with open(os.path.join(current_dir, "blockchain.json")) as f:
+            all_blockchains = json.load(f)
+        blockchain = all_blockchains[mode]
         with open(os.path.join(current_dir, "QueryManager.json")) as f:
             qm_info = json.load(f)
         qm_abi = qm_info["abi"]
@@ -36,16 +28,18 @@ class Nectar:
         with open(os.path.join(current_dir, "EoaBond.json")) as f:
             eb_info = json.load(f)
         eb_abi = eb_info["abi"]
-        self.web3 = Web3(Web3.HTTPProvider(blockchain_url))
+        self.web3 = Web3(Web3.HTTPProvider(blockchain["url"]))
         self.account = {
             "private_key": api_secret,
             "address": self.web3.eth.account.from_key(api_secret).address,
         }
         self.web3.eth.set_gas_price_strategy(rpc_gas_price_strategy)
-        self.USDC = self.web3.eth.contract(address=nt_contract_addr, abi=nt_abi)
-        self.QueryManager = self.web3.eth.contract(address=qm_contract_addr, abi=qm_abi)
-        self.EoaBond = self.web3.eth.contract(address=eb_contract_addr, abi=eb_abi)
-        self.qm_contract_addr = qm_contract_addr
+        self.USDC = self.web3.eth.contract(address=blockchain["usdc"], abi=nt_abi)
+        self.QueryManager = self.web3.eth.contract(
+            address=blockchain["queryManager"], abi=qm_abi
+        )
+        self.EoaBond = self.web3.eth.contract(address=blockchain["eoaBond"], abi=eb_abi)
+        self.qm_contract_addr = blockchain["queryManager"]
 
     def approve_payment(self, amount: int) -> TxReceipt:
         """Approves an EC20 query payment"""

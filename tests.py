@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 API_SECRET = os.getenv("API_SECRET")
-EVM_NODE = os.getenv("EVM_NODE")
+NETWORK_MODE = os.getenv("NETWORK_MODE")
 TEE_DATA_URL = os.getenv("TEE_DATA_URL")
 
 
@@ -29,7 +29,7 @@ def setup_bucket(nectar: Nectar) -> int:
 class TestNectar(unittest.TestCase):
 
     def test_count_query(self):
-        nectar = Nectar(API_SECRET, EVM_NODE)
+        nectar = Nectar(API_SECRET, NETWORK_MODE)
         bucket_id = setup_bucket(nectar)
         result = nectar.query(
             aggregate_type="count",
@@ -44,7 +44,7 @@ class TestNectar(unittest.TestCase):
         print("-> count result:", result)
 
     def test_mean_query(self):
-        nectar = Nectar(API_SECRET, EVM_NODE)
+        nectar = Nectar(API_SECRET, NETWORK_MODE)
         bucket_id = setup_bucket(nectar)
         result = nectar.query(
             aggregate_type="mean",
@@ -59,7 +59,7 @@ class TestNectar(unittest.TestCase):
         print("-> mean result:", result)
 
     def test_variance_query(self):
-        nectar = Nectar(API_SECRET, EVM_NODE)
+        nectar = Nectar(API_SECRET, NETWORK_MODE)
         bucket_id = setup_bucket(nectar)
         result = nectar.query(
             aggregate_type="variance",
@@ -74,7 +74,7 @@ class TestNectar(unittest.TestCase):
         print("-> variance result:", result)
 
     def test_invalid_query(self):
-        nectar = Nectar(API_SECRET, EVM_NODE)
+        nectar = Nectar(API_SECRET, NETWORK_MODE)
         bucket_id = setup_bucket(nectar)
         with self.assertRaises(ValueError):
             nectar.query(
@@ -89,7 +89,7 @@ class TestNectar(unittest.TestCase):
         print("-> query failed as expected")
 
     def test_query_with_filter(self):
-        nectar = Nectar(API_SECRET, EVM_NODE)
+        nectar = Nectar(API_SECRET, NETWORK_MODE)
         bucket_id = setup_bucket(nectar)
         filters = '[{"column":"smoking","filter":"=","value":false}]'
         result = nectar.query(
@@ -105,7 +105,7 @@ class TestNectar(unittest.TestCase):
         print("-> count result with filter:", result)
 
     def test_linear_regression(self):
-        nectar = Nectar(API_SECRET, EVM_NODE)
+        nectar = Nectar(API_SECRET, NETWORK_MODE)
         bucket_id = setup_bucket(nectar)
         result = nectar.train_model(
             type="linear-regression",
@@ -120,7 +120,7 @@ class TestNectar(unittest.TestCase):
         print("-> linear regression result:", result)
 
     def test_add_policy(self):
-        nectar = Nectar(API_SECRET, EVM_NODE)
+        nectar = Nectar(API_SECRET, NETWORK_MODE)
         price = 123
         policy_id = nectar.add_policy(
             allowed_categories=["category1"],
@@ -134,7 +134,7 @@ class TestNectar(unittest.TestCase):
         print("-> successfully added policy")
 
     def test_add_bucket(self):
-        nectar = Nectar(API_SECRET, EVM_NODE)
+        nectar = Nectar(API_SECRET, NETWORK_MODE)
         node_address = "node.example.com"
         bucket_id = nectar.add_bucket(
             policy_ids=[123],
