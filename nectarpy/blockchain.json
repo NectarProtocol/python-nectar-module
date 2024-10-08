@@ -6,6 +6,13 @@
         "queryManager": "0xE6f79f5fC9752Aa833c9aA0d4C1BE3cE2AfF746E",
         "eoaBond": "0x2741607B0aF9C40c72a07d5e66f6d09B3da1d4D6"
     },
+    "localhostaws": {
+        "url": "http://3.135.213.43:8545",
+        "chainId": "0x7A69",
+        "usdc": "0x941c42263080E3fec35F52A344DfCa0bEda103F4",
+        "queryManager": "0xE6f79f5fC9752Aa833c9aA0d4C1BE3cE2AfF746E",
+        "eoaBond": "0x2741607B0aF9C40c72a07d5e66f6d09B3da1d4D6"
+    },
     "moonbase": {
         "url": "https://rpc.api.moonbase.moonbeam.network",
         "chainId": "0x507",

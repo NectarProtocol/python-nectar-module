@@ -14,7 +14,7 @@ current_dir = os.path.dirname(__file__)
 class Nectar:
     """Client for sending queries to Nectar"""
 
-    def __init__(self, api_secret: str, mode: str = "localhost"):
+    def __init__(self, api_secret: str, mode: str = "moonbeam"):
         print("network mode:", mode)
         with open(os.path.join(current_dir, "blockchain.json")) as f:
             all_blockchains = json.load(f)

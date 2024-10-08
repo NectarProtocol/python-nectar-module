@@ -8,20 +8,56 @@ This is a Python API module designed to run queries on Nectar, add bucket inform
 pip3 install nectarpy
 ```
 
-## Example
+## Python Example
 
 ```python
 from nectarpy import Nectar
+```
 
-nectar = Nectar("API-SECRET")
+```python
+API_SECRET = "<api-secret>"
+```
 
-result = nectar.query(
-    aggregate_type="variance",
-    aggregate_column="heart_rate",
-    filters='[ { "column": "smoking", "filter": "=", "value": false } ]',
+```python
+nectar = Nectar(API_SECRET)
+```
+
+```python
+policy_id = nectar.add_policy(
+    allowed_categories=["*"],
+    allowed_addresses=[],
+    allowed_columns=["*"],
+    valid_days=1000,
+    price=123,
 )
+```
 
-print(result) # 1234.5
+```python
+TEE_DATA_URL = "https://<ip-address>:5229/"
+```
+
+```python
+bucket_id = nectar.add_bucket(
+    policy_ids=[policy_id],
+    data_format="std1",
+    node_address=TEE_DATA_URL,
+)
+```
+
+```python
+result = nectar.train_model(
+    type="linear-regression",
+    parameters='{"xcols":["heart_rate","age"],"ycol":"height"}',
+    filters='[ { "column": "smoking", "filter": "=", "value": false } ]',
+    use_allowlists=[False],
+    access_indexes=[0],
+    bucket_ids=[bucket_id],
+    policy_indexes=[0],
+)
+```
+
+```python
+print(result)
 ```
 
 ## Integration Tests
