@@ -16,7 +16,7 @@ def setup_bucket(nectar: Nectar) -> int:
         allowed_addresses=[],
         allowed_columns=["*"],
         valid_days=1000,
-        price=123,
+        usd_price=0.0123,
     )
     bucket_id = nectar.add_bucket(
         policy_ids=[policy_id],
@@ -121,13 +121,13 @@ class TestNectar(unittest.TestCase):
 
     def test_add_policy(self):
         nectar = Nectar(API_SECRET, NETWORK_MODE)
-        price = 123
+        price = 0.0123
         policy_id = nectar.add_policy(
             allowed_categories=["category1"],
             allowed_addresses=[],
             allowed_columns=["column1"],
             valid_days=1000,
-            price=price,
+            usd_price=price,
         )
         policy = nectar.read_policy(policy_id)
         self.assertEqual(policy["price"], price)

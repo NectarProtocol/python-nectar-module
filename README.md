@@ -28,7 +28,7 @@ policy_id = nectar.add_policy(
     allowed_addresses=[],
     allowed_columns=["*"],
     valid_days=1000,
-    price=123,
+    usd_price=0.0123,
 )
 ```
 

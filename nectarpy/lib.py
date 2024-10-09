@@ -172,10 +172,11 @@ class Nectar:
         allowed_addresses: list,
         allowed_columns: list,
         valid_days: int,
-        price: int,
+        usd_price: float,
     ) -> int:
         """Set a new on-chain policy"""
         print("adding new policy...")
+        price = Web3.to_wei(usd_price, "mwei")
         policy_id = secrets.randbits(256)
         edo = datetime.now() + timedelta(days=valid_days)
         exp_date = int(time.mktime(edo.timetuple()))
