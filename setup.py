@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="nectarpy",
-    version="0.11.0",
+    version="0.12.0",
     packages=find_packages(),
     include_package_data=True,
     license="Apache License 2.0",

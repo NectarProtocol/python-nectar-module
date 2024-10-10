@@ -48,7 +48,7 @@ bucket_id = nectar.add_bucket(
 result = nectar.train_model(
     type="linear-regression",
     parameters='{"xcols":["heart_rate","age"],"ycol":"height"}',
-    filters='[ { "column": "smoking", "filter": "=", "value": false } ]',
+    filters='[{"column":"smoking","filter":"=","value":false}]',
     use_allowlists=[False],
     access_indexes=[0],
     bucket_ids=[bucket_id],
@@ -62,7 +62,7 @@ print(result)
 
 ## Integration Tests
 
-### Step 1: Create a .env file
+### 1: Create a .env file
 
 ```
 API_SECRET=0x123...
@@ -70,7 +70,7 @@ NETWORK_MODE=<localhost | moonbase | moonbeam>
 TEE_DATA_URL=https://<ip-address>:5229/
 ```
 
-### Step 2: Run!
+### 2: Run
 
 ```bash
 python3 tests.py
