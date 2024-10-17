@@ -21,5 +21,5 @@ setup(
         "Operating System :: OS Independent",
     ],
     python_requires=">=3.8, <4",
-    install_requires=["web3<7.0.0", "python-dotenv"],
+    install_requires=["web3<7.0.0", "python-dotenv", "hpke"],
 )

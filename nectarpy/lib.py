@@ -3,10 +3,14 @@ import time
 import os
 import secrets
 import time
+import hpke
 from datetime import datetime, timedelta
 from web3 import Web3
 from web3.types import TxReceipt
 from web3.gas_strategies.rpc import rpc_gas_price_strategy
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.backends import default_backend
 
 current_dir = os.path.dirname(__file__)
 
@@ -16,6 +20,27 @@ class Nectar:
 
     def __init__(self, api_secret: str, mode: str = "moonbeam"):
         print("network mode:", mode)
+        self.suite = hpke.Suite__DHKEM_P256_HKDF_SHA256__HKDF_SHA256__AES_128_GCM
+        hkdf = HKDF(
+            algorithm=self.suite.KDF.HASH,
+            length=self.suite.KEM.NSECRET,
+            salt=None,
+            info=b"nectar-client-v1",
+            backend=default_backend(),
+        )
+        skey_bytes = bytes.fromhex(self.sans_hex_prefix(api_secret))
+        derived_key_bytes = hkdf.derive(skey_bytes)
+        skey_int = int.from_bytes(derived_key_bytes, "big")
+        self.skey = ec.derive_private_key(
+            skey_int, self.suite.KEM.CURVE, default_backend()
+        )
+        self.hex_pubkey = self.suite.KEM._encode_public_key(
+            self.skey.public_key()
+        ).hex()
+        with open(os.path.join(current_dir, "starnode.json")) as f:
+            sn_config = json.load(f)
+        sn_pubkey_bytes = bytes.fromhex(sn_config["public_key"])
+        self.sn_pubkey = self.suite.KEM.decode_public_key(sn_pubkey_bytes)
         with open(os.path.join(current_dir, "blockchain.json")) as f:
             all_blockchains = json.load(f)
         blockchain = all_blockchains[mode]
@@ -40,6 +65,36 @@ class Nectar:
         )
         self.EoaBond = self.web3.eth.contract(address=blockchain["eoaBond"], abi=eb_abi)
         self.qm_contract_addr = blockchain["queryManager"]
+
+    def sans_hex_prefix(self, hexval: str) -> str:
+        """Returns a hex string without the 0x prefix"""
+        if hexval.startswith("0x"):
+            return hexval[2:]
+        return hexval
+
+    def hybrid_encrypt(self, value: str) -> str:
+        """Encrypts a string with the Star Node public key"""
+        enc, ciphertext = self.suite.seal(
+            peer_pubkey=self.sn_pubkey, info=b"", aad=b"", message=value.encode()
+        )
+        secret = {
+            "cipher": ciphertext.hex(),
+            "encapsulatedKey": enc.hex(),
+            "returnPubkey": self.hex_pubkey,
+        }
+        return json.dumps(secret)
+
+    def hybrid_decrypt(self, secret: str) -> str:
+        """Decrypts a ciphertext with the API secret derived key"""
+        s = json.loads(secret)
+        msg = self.suite.open(
+            encap=bytes.fromhex(s["encapsulatedKey"]),
+            our_privatekey=self.skey,
+            info=b"",
+            aad=b"",
+            ciphertext=bytes.fromhex(s["cipher"]),
+        )
+        return msg.decode()
 
     def approve_payment(self, amount: int) -> TxReceipt:
         """Approves an EC20 query payment"""
