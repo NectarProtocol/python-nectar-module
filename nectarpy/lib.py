@@ -58,6 +58,7 @@ class Nectar:
             "private_key": api_secret,
             "address": self.web3.eth.account.from_key(api_secret).address,
         }
+        print("api account address:", self.account["address"])
         self.web3.eth.set_gas_price_strategy(rpc_gas_price_strategy)
         self.USDC = self.web3.eth.contract(address=blockchain["usdc"], abi=nt_abi)
         self.QueryManager = self.web3.eth.contract(
@@ -123,13 +124,15 @@ class Nectar:
         policy_indexes: list,
     ) -> tuple:
         """Sends a query along with a payment"""
+        print("encrypting query under star node key...")
+        encrypted_query = self.hybrid_encrypt(query)
         print("sending query with payment...")
         user_index = self.QueryManager.functions.getUserIndex(
             self.account["address"]
         ).call()
         query_tx = self.QueryManager.functions.payQuery(
             user_index,
-            query,
+            encrypted_query,
             use_allowlists,
             access_indexes,
             price,
@@ -158,7 +161,8 @@ class Nectar:
             ).call()
             time.sleep(5)
             result = query[2]
-        return result
+        print("decrypting result...")
+        return self.hybrid_decrypt(result)
 
     def get_pay_amount(self, bucket_ids: list, policy_indexes: list) -> int:
         policy_ids = []
