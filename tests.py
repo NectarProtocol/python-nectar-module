@@ -220,6 +220,22 @@ class TestNectar(unittest.TestCase):
         print("result:", result)
         print("-> successfully blocked and authorized data operation")
 
+    def test_distributed_lr(self):
+        nectar = Nectar(API_SECRET, NETWORK_MODE)
+        bucket_id_1 = quick_bucket_setup(nectar)
+        bucket_id_2 = quick_bucket_setup(nectar)
+        result = nectar.train_model(
+            type="linear-regression",
+            parameters='{"xcols":["heart_rate","age"],"ycol":"height"}',
+            filters="[]",
+            use_allowlists=[False, False],
+            access_indexes=[0, 0],
+            bucket_ids=[bucket_id_1, bucket_id_2],
+            policy_indexes=[0, 0],
+        )
+        self.assertTrue(isinstance(result, dict))
+        print("-> linear regression result on two buckets:", result)
+
 
 if __name__ == "__main__":
     unittest.main()
