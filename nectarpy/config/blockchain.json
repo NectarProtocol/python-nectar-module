@@ -2,9 +2,10 @@
     "localhost": {
         "url": "http://localhost:8545",
         "chainId": "0x7A69",
-        "usdc": "0x941c42263080E3fec35F52A344DfCa0bEda103F4",
-        "queryManager": "0xE6f79f5fC9752Aa833c9aA0d4C1BE3cE2AfF746E",
-        "eoaBond": "0x2741607B0aF9C40c72a07d5e66f6d09B3da1d4D6"
+        "usdc": "0x8ECa9F7eB9Ec2cb4E947cD729082a2fa0A3B7e37",
+        "queryManager": "0x40841746C1b1C3E37F806F9B313DaA92ecb8ee8b",
+        "eoaBond": "0xaca21ACf3081ba10C2687DcC1ef6762b4612F04d",
+        "userRole": "0xBE03F7540E83e9F26a628298f689B8428DC7DC68"
     },
     "localhostaws": {
         "url": "http://3.135.213.43:8545",
@@ -24,7 +25,8 @@
         "url": "https://rpc.api.moonbeam.network",
         "chainId": "0x504",
         "usdc": "0xFFfffffF7D2B0B761Af01Ca8e25242976ac0aD7D",
-        "queryManager": "0x941c42263080E3fec35F52A344DfCa0bEda103F4",
-        "eoaBond": "0x06ef8FD993A749D6EcA0f4E05D032F8a0267826d"
+        "queryManager": "0x28F04213cAd6dFd32C8B2f16C38243F5580627D7",
+        "eoaBond": "0x86DD1474741d943b186F9ea11A46ae8BeC355438",
+        "userRole": "0x116A661E5bC223BEec2cf98af25cF4ACbf5f734c"
     }
 }

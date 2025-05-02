@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="nectarpy",
+    name="nectar-server",
     version="0.13.0",
     packages=find_packages(),
     include_package_data=True,
@@ -21,5 +21,5 @@ setup(
         "Operating System :: OS Independent",
     ],
     python_requires=">=3.8, <4",
-    install_requires=["web3<7.0.0", "python-dotenv", "hpke"],
+    install_requires=["web3<7.0.0", "python-dotenv", "hpke", "dill"],
 )
