@@ -14,6 +14,7 @@ setup(
     author_email="phil@tamarin.health",
     package_data={
         "": ["*.json"],
+        "": ["config/*.json"],
     },
     classifiers=[
         "Programming Language :: Python :: 3",

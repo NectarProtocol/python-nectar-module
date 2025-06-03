@@ -1,6 +1,6 @@
-# PYTHON NECTAR MODULE
+# PYTHON NECTAR MODULE for Data Analyst
 
-This is a Python API module designed to run queries on Nectar and add bucket information.
+This is a Python API module designed to run queries on Nectar.
 
 ---
 ## Installation
@@ -33,7 +33,7 @@ bucket_ids = nectar_client.get_bucket_ids()
 
 ### Aggregate Types: Linear Regression, Mean, Count, Variance, Minimum, Maximum, Sum
 
-#### **Use Case 1: Linear Regression Analysis**
+#### **Use Case 1: Linear Regression analysis**
 
 The `linear_regression_func` method performs a simple linear regression analysis on worker data, predicting **height** based on **heart rate** and **age**.
 
@@ -62,7 +62,7 @@ def linear_regression_func():
 ```
 
 ---
-#### **Use Case 2: Counting Records**
+#### **Use Case 2: Counting records**
 
 The `count_func` method calculates the total number of records (rows) in the **worker-data.csv** file.
 
@@ -77,7 +77,7 @@ def count_func():
 ```
 
 ---
-#### **Use Case 3: Calculating Mean Age**
+#### **Use Case 3: Calculating Mean age**
 
 The `mean_func` method calculates the **average age** of workers and the total number of records.
 
@@ -95,7 +95,7 @@ def mean_func():
 ```
 
 ---
-#### **Use Case 4: Calculating Variance of Age**
+#### **Use Case 4: Calculating Variance of age**
 
 The `variance_func` method calculates the **total number of records**, the **average age**, and the **variance of age**.
 
@@ -230,9 +230,9 @@ print(result)
 ```
 
 ---
-## Exception Handling
+## Exception handling
 
-### **Bucket ID Does Not Exist**
+### **Bucket ID does not exist**
 
 ```python
 bucket_not_exist = "30551459429423590702715106722240816746282150213228561545827912304803497819734"
@@ -249,7 +249,7 @@ result = nectar_client.byoc_query(
 )
 ```
 
-### **Incorrect Operation Name**
+### **Incorrect operation name**
 
 ```python
 result = nectar_client.byoc_query(
@@ -262,3 +262,9 @@ result = nectar_client.byoc_query(
 )
 ```
 
+## Refer to the example in the sample folder
+
+```python
+test_da_exception_case.ipynb
+test_da_exception_case.ipynb
+```

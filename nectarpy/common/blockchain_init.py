@@ -2,6 +2,7 @@ import os
 import hpke
 import json
 from web3 import Web3
+from pathlib import Path
 from web3.gas_strategies.rpc import rpc_gas_price_strategy
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives.asymmetric import ec
@@ -10,8 +11,9 @@ from cryptography.hazmat.backends import default_backend
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
 
 def req_json(rel_path):
-    filePath = os.path.join(BASE_PATH, rel_path)
-    with open(filePath, 'r', encoding='utf-8') as file:
+    parent_folder_path =  Path(__file__).resolve().parent.parent
+    file_path = parent_folder_path / rel_path
+    with open(file_path, 'r', encoding='utf-8') as file:
         jsonStr = file.read()
     return json.loads(jsonStr)
 
@@ -34,15 +36,15 @@ def blockchain_init(self, api_secret: str, mode: str = "moonbeam"):
     self.hex_pubkey = self.suite.KEM._encode_public_key(
         self.skey.public_key()
     ).hex()
-    sn_pubkey_bytes = bytes.fromhex(req_json("../config/starnode.json")["public_key"])
+    sn_pubkey_bytes = bytes.fromhex(req_json("config/starnode.json")["public_key"])
     self.sn_pubkey = self.suite.KEM.decode_public_key(sn_pubkey_bytes)
     
     # blockchain
-    blockchain = req_json("../config/blockchain.json")[mode]
-    qm_abi = req_json("../config/QueryManager.json")["abi"]
-    eb_abi = req_json("../config/EoaBond.json")["abi"]
-    nt_abi = req_json("../config/USDC.json")["abi"]
-    user_role_abi = req_json("../config/UserRole.json")["abi"]
+    blockchain = req_json("config/blockchain.json")[mode]
+    qm_abi = req_json("config/QueryManager.json")["abi"]
+    eb_abi = req_json("config/EoaBond.json")["abi"]
+    nt_abi = req_json("config/USDC.json")["abi"]
+    user_role_abi = req_json("config/UserRole.json")["abi"]
     
     self.web3 = Web3(Web3.HTTPProvider(blockchain["url"]))
     self.account = {

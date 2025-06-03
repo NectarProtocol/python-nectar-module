@@ -1,6 +1,6 @@
-# PYTHON NECTAR MODULE
+# PYTHON NECTAR MODULE for Data Owner
 
-This is a Python API module designed to run queries on Nectar, add bucket information, and set policies.
+This is a Python API module designed to add bucket information, and set policies.
 
 ---
 ## Installation
@@ -12,16 +12,16 @@ pip3 install nectarpy
 ```
 
 ---
-## Getting Started
+## Getting started
 
-### Importing the Module
+### Importing the module
 To use `nectarpy`, first import the `Nectar` class:
 
 ```python
 from nectarpy import Nectar
 ```
 
-### Setting Up API Credentials
+### Setting up API credentials
 You must provide your **API_SECRET** key to authenticate requests:
 
 ```python
@@ -36,12 +36,12 @@ nectar = Nectar(API_SECRET)
 ```
 
 ---
-## Policy Management
+## Policy management
 
-### Adding Policies
+### Adding policies
 Policies define which columns can be accessed and under what conditions.
 
-#### **Adding a Policy for All Columns**
+#### **Adding a policy for all columns**
 Allows access to all columns with a validity period of **1000 days** and a price of **0.0123 USD**:
 
 ```python
@@ -54,7 +54,7 @@ policy_id = nectar.add_policy(
 )
 ```
 
-#### **Adding a Policy for Specific Columns**
+#### **Adding a policy for specific columns**
 Restricts access to only the `age` and `height` columns:
 
 ```python
@@ -80,7 +80,7 @@ policy_id = nectar.add_policy(
 ---
 
 ---
-## Bucket Management
+## Bucket management
 
 ### Adding a Bucket
 The **TEE_DATA_URL** represents the secure enclave node where the data is stored.
@@ -98,7 +98,7 @@ bucket_id = nectar.add_bucket(
 ```
 
 ---
-## Executing Queries
+## Executing queries
 
 You can retrieve results from stored data using defined policies and bucket IDs.
 
@@ -107,9 +107,9 @@ print(bucket_id)
 ```
 
 ---
-## Exception Handling
+## Exception handling
 
-### **Case 1: API_SECRET Has No Balance**
+### **Case 1: API_SECRET has no balance**
 If your **API_SECRET** does not have sufficient funds, transactions will fail.
 
 ```python
@@ -128,4 +128,11 @@ policy_id = nectar.add_policy(
     valid_days=1000,
     usd_price=0.0123,
 )
+```
+
+## Refer to the example in the sample folder
+
+```python
+test_do_normal_case.ipynb
+test_do_exception_case.ipynb
 ```
