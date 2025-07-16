@@ -167,9 +167,10 @@ class NectarClient:
 
     def byoc_query(
         self,
-        func,
-        bucket_ids: list,
-        operation: str = None,
+        pre_compute_func = None,
+        main_func = None,
+        isSeparate_data : bool =False,
+        bucket_ids: list = None,
         policy_indexes: list = None,
         use_allowlists: list = None,
         access_indexes: list = None,
@@ -184,8 +185,9 @@ class NectarClient:
         """Approves a payment, sends a query, then fetches the result"""
         self.approve_payment(price)
         query_str = {
-            "func": dill.dumps(func),
-            "operation": operation
+            "pre_compute_func": dill.dumps(pre_compute_func) if pre_compute_func else None,
+            "main_func": dill.dumps(main_func) if main_func else None,
+            "isSeparate_data": isSeparate_data
         }
         user_index, _ = self.pay_query(
             query_str, price, use_allowlists=use_allowlists, access_indexes=access_indexes, bucket_ids=bucket_ids, policy_indexes=policy_indexes
