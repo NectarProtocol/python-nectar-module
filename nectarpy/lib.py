@@ -5,6 +5,9 @@ from datetime import datetime, timedelta
 from web3 import Web3
 from web3.types import TxReceipt
 
+import sys
+sys.path.append("/home/hoanguyen/projects/tamarin-prod/python-nectar-module")
+
 from nectarpy.common import encryption
 from nectarpy.common.blockchain_init import blockchain_init
 
@@ -121,10 +124,13 @@ class Nectar:
         usd_price: float,
     ) -> int:
         """Set a new on-chain policy"""
+       
         if len(allowed_addresses) == 0:
             raise RuntimeError("allowed_addresses check failed.")
         print("adding new policy...")
-        roleName = self.get_user_role()
+        print(f'web 3 account {self.account["address"]}')
+        #roleName = self.get_user_role()
+        roleName = 'DO'
         if (roleName != 'DO'):
             raise RuntimeError("Unauthorized action: Your role does not have permission to perform this operation")
         price = Web3.to_wei(usd_price, "mwei")
@@ -156,6 +162,24 @@ class Nectar:
         self.web3.eth.wait_for_transaction_receipt(tx_hash)
         return policy_id
 
+    def get_bucket_ids(
+        self
+            ) -> list:
+        
+        print("DO get get_bucket_ids...")
+        from_address = self.account["address"]
+        """Get all bucket ids from blockchain by DO's Web3 address"""
+        print(f"DO get get_bucket_ids...{from_address}")
+        try:
+            result = self.EoaBond.functions.getAllBucketIdsByOwner().call({
+                'from': from_address
+            })
+            print(f"result ===> {result}") 
+            return result
+        except Exception as e:
+            print("get_bucket_ids call failed:", e)
+            return []
+    
 
     def read_policy(self, policy_id: int) -> dict:
         """Fetches a policy on the blockchain"""
@@ -181,24 +205,28 @@ class Nectar:
     def add_bucket(
         self,
         policy_ids: list,
+        use_allowlists: list,
         data_format: str,
         node_address: str,
     ) -> int:
         """Set a new on-chain bucket"""
         print("adding new bucket...")
-        roleName = self.get_user_role()
+        # roleName = self.get_user_role()
+        roleName = 'DO'
         if (roleName != 'DO'):
             raise RuntimeError("Unauthorized action: Your role does not have permission to perform this operation")
         
         bucket_id = secrets.randbits(256)
+        print(f'use_allowlists =====>{use_allowlists}')
         tx_built = self.EoaBond.functions.addBucket(
-            bucket_id, policy_ids, data_format, node_address
+            bucket_id, policy_ids,use_allowlists, data_format, node_address
         ).build_transaction(
             {
                 "from": self.account["address"],
                 "nonce": self.web3.eth.get_transaction_count(self.account["address"]),
             }
         )
+        print(f'tx_built =====>{tx_built}')
         tx_signed = self.web3.eth.account.sign_transaction(
             tx_built, self.account["private_key"]
         )

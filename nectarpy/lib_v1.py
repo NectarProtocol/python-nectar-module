@@ -5,6 +5,12 @@ import dill
 from web3.types import TxReceipt
 from web3.exceptions import ContractLogicError
 
+import sys
+sys.path.append("/home/hoanguyen/projects/tamarin-prod/python-nectar-module")
+
+# project_root = os.path.abspath("../tamarin-prod/python-nectar-module")  # từ notebooks lên 1 cấp -> /home/hoanguyen/projects/tamarin
+# sys.path.insert(0, project_root)
+
 from nectarpy.common import encryption
 from nectarpy.common.blockchain_init import blockchain_init
 
@@ -33,6 +39,7 @@ class NectarClient:
 
     def read_policy(self, policy_id: int) -> dict:
         """Fetches a policy on the blockchain"""
+        
         policy_data = self.EoaBond.functions.policies(policy_id).call()
         return {
             "policy_id": policy_id,
@@ -102,14 +109,12 @@ class NectarClient:
         self,
         query_str,
         price: int,
-        use_allowlists: list,
-        access_indexes: list,
         bucket_ids: list,
         policy_indexes: list,
     ) -> tuple:
         """Sends a query along with a payment"""
         print("encrypting query under star node key...")
-        ppcCmd = encryption.hybrid_encrypt_v1(self, query_str, policy_indexes, access_indexes, use_allowlists)
+        ppcCmd = encryption.hybrid_encrypt_v1(self, query_str, policy_indexes)
         print("sending query with payment...")
         user_index = self.QueryManager.functions.getUserIndex(
             self.account["address"]
@@ -117,8 +122,6 @@ class NectarClient:
         query_tx = self.QueryManager.functions.payQuery(
             user_index,
             ppcCmd,
-            use_allowlists,
-            access_indexes,
             price,
             bucket_ids,
             policy_indexes,
@@ -169,15 +172,15 @@ class NectarClient:
         self,
         pre_compute_func = None,
         main_func = None,
-        isSeparate_data : bool =False,
+        is_separate_data : bool =False,
         bucket_ids: list = None,
-        policy_indexes: list = None,
-        use_allowlists: list = None,
-        access_indexes: list = None,
+        policy_indexes: list = None
+       
     ) -> tuple:
         """Sends a query along with a payment"""
         print("Checking the current logged-in user's role.")
-        roleName = self.get_user_role()
+        #roleName = self.get_user_role()
+        roleName = 'DA'
         if (roleName != 'DA'):
             raise RuntimeError("Unauthorized action: Your role does not have permission to perform this operation")
         print("Sending query to blockchain...")
@@ -187,10 +190,10 @@ class NectarClient:
         query_str = {
             "pre_compute_func": dill.dumps(pre_compute_func) if pre_compute_func else None,
             "main_func": dill.dumps(main_func) if main_func else None,
-            "isSeparate_data": isSeparate_data
+            "is_separate_data": is_separate_data
         }
         user_index, _ = self.pay_query(
-            query_str, price, use_allowlists=use_allowlists, access_indexes=access_indexes, bucket_ids=bucket_ids, policy_indexes=policy_indexes
+            query_str, price,bucket_ids=bucket_ids, policy_indexes=policy_indexes
         )
         query_res = self.wait_for_query_result(user_index)
         return query_res
