@@ -179,8 +179,7 @@ class NectarClient:
     ) -> tuple:
         """Sends a query along with a payment"""
         print("Checking the current logged-in user's role.")
-        #roleName = self.get_user_role()
-        roleName = 'DA'
+        roleName = self.get_user_role()        
         if (roleName != 'DA'):
             raise RuntimeError("Unauthorized action: Your role does not have permission to perform this operation")
         print("Sending query to blockchain...")

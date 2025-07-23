@@ -211,8 +211,7 @@ class Nectar:
     ) -> int:
         """Set a new on-chain bucket"""
         print("adding new bucket...")
-        # roleName = self.get_user_role()
-        roleName = 'DO'
+        roleName = self.get_user_role()
         if (roleName != 'DO'):
             raise RuntimeError("Unauthorized action: Your role does not have permission to perform this operation")
         
