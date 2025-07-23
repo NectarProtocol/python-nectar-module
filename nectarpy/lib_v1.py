@@ -4,13 +4,7 @@ import time
 import dill
 from web3.types import TxReceipt
 from web3.exceptions import ContractLogicError
-
 import sys
-sys.path.append("/home/hoanguyen/projects/tamarin-prod/python-nectar-module")
-
-# project_root = os.path.abspath("../tamarin-prod/python-nectar-module")  # từ notebooks lên 1 cấp -> /home/hoanguyen/projects/tamarin
-# sys.path.insert(0, project_root)
-
 from nectarpy.common import encryption
 from nectarpy.common.blockchain_init import blockchain_init
 

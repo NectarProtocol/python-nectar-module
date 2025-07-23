@@ -4,10 +4,7 @@ import secrets
 from datetime import datetime, timedelta
 from web3 import Web3
 from web3.types import TxReceipt
-
 import sys
-sys.path.append("/home/hoanguyen/projects/tamarin-prod/python-nectar-module")
-
 from nectarpy.common import encryption
 from nectarpy.common.blockchain_init import blockchain_init
 
@@ -129,8 +126,7 @@ class Nectar:
             raise RuntimeError("allowed_addresses check failed.")
         print("adding new policy...")
         print(f'web 3 account {self.account["address"]}')
-        #roleName = self.get_user_role()
-        roleName = 'DO'
+        roleName = self.get_user_role()        
         if (roleName != 'DO'):
             raise RuntimeError("Unauthorized action: Your role does not have permission to perform this operation")
         price = Web3.to_wei(usd_price, "mwei")
