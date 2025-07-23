@@ -221,6 +221,15 @@ class Nectar:
         }
 
 
+    def get_bucket_ids(
+        self,
+        address: str
+    ) -> list:
+        """Get all bucket ids by an address from blockchain"""
+        result = self.EoaBond.functions.getOwnerBucketIdsByAddress(Web3.to_checksum_address(address)).call()
+        return result
+
+
     def add_policy_to_bucket(
         self,
         bucket_id: int,
