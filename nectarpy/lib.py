@@ -169,7 +169,7 @@ class Nectar:
             if address is None:
                 # If no address is provided, use the account's address
                 # Get all bucket ids from blockchain by DO's Web3 address"""
-                address = self.account["address"]
+                from_address = self.account["address"]
                 result = self.EoaBond.functions.getAllBucketIdsByOwner().call({
                     'from': from_address
                 })
