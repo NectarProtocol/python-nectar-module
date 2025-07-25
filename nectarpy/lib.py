@@ -4,7 +4,6 @@ import secrets
 from datetime import datetime, timedelta
 from web3 import Web3
 from web3.types import TxReceipt
-import sys
 from nectarpy.common import encryption
 from nectarpy.common.blockchain_init import blockchain_init
 
@@ -15,6 +14,7 @@ class Nectar:
 
     def __init__(self, api_secret: str, mode: str = "moonbeam"):
         blockchain_init(self, api_secret, mode)
+        self.check_if_is_valid_user_role()
 
 
     def sans_hex_prefix(self, hexval: str) -> str:
@@ -104,13 +104,17 @@ class Nectar:
         prices = [self.read_policy(p)["price"] for p in policy_ids]
         return sum(prices)
 
-    def get_user_role(
+
+    def check_if_is_valid_user_role(
         self
     ) -> str:
         """Getting current role"""
         roleName = self.UserRole.functions.getUserRole(self.account["address"]).call()
+        if roleName not in ["DO"]:
+            raise RuntimeError("Unauthorized action: Your role does not have permission to perform this operation")
+        print(f"Current user role: {roleName}")
         return roleName
-    
+
 
     def add_policy(
         self,
@@ -121,14 +125,11 @@ class Nectar:
         usd_price: float,
     ) -> int:
         """Set a new on-chain policy"""
-       
         if len(allowed_addresses) == 0:
             raise RuntimeError("allowed_addresses check failed.")
         print("adding new policy...")
         print(f'web 3 account {self.account["address"]}')
-        roleName = self.get_user_role()        
-        if (roleName != 'DO'):
-            raise RuntimeError("Unauthorized action: Your role does not have permission to perform this operation")
+        self.check_if_is_valid_user_role()
         price = Web3.to_wei(usd_price, "mwei")
         policy_id = secrets.randbits(256)
         edo = datetime.now() + timedelta(days=valid_days)
@@ -158,24 +159,30 @@ class Nectar:
         self.web3.eth.wait_for_transaction_receipt(tx_hash)
         return policy_id
 
+
     def get_bucket_ids(
         self
+        , address: str = None
             ) -> list:
-        
         print("DO get get_bucket_ids...")
-        from_address = self.account["address"]
-        """Get all bucket ids from blockchain by DO's Web3 address"""
-        print(f"DO get get_bucket_ids...{from_address}")
         try:
-            result = self.EoaBond.functions.getAllBucketIdsByOwner().call({
-                'from': from_address
-            })
-            print(f"result ===> {result}") 
-            return result
+            if address is None:
+                # If no address is provided, use the account's address
+                # Get all bucket ids from blockchain by DO's Web3 address"""
+                address = self.account["address"]
+                result = self.EoaBond.functions.getAllBucketIdsByOwner().call({
+                    'from': from_address
+                })
+                print(f"result ===> {result}") 
+                return result
+            else:
+                # Ensure the provided address is a checksum address
+                print(f"DO get get_bucket_ids...{address}")
+                return self.EoaBond.functions.getOwnerBucketIdsByAddress(Web3.to_checksum_address(address)).call()
         except Exception as e:
             print("get_bucket_ids call failed:", e)
             return []
-    
+
 
     def read_policy(self, policy_id: int) -> dict:
         """Fetches a policy on the blockchain"""
@@ -207,10 +214,6 @@ class Nectar:
     ) -> int:
         """Set a new on-chain bucket"""
         print("adding new bucket...")
-        roleName = self.get_user_role()
-        if (roleName != 'DO'):
-            raise RuntimeError("Unauthorized action: Your role does not have permission to perform this operation")
-        
         bucket_id = secrets.randbits(256)
         print(f'use_allowlists =====>{use_allowlists}')
         tx_built = self.EoaBond.functions.addBucket(
@@ -242,16 +245,6 @@ class Nectar:
             "owner": bucket_data[2],
             "deactivated": bucket_data[3],
         }
-
-
-    def get_bucket_ids(
-        self,
-        address: str
-    ) -> list:
-        """Get all bucket ids by an address from blockchain"""
-        result = self.EoaBond.functions.getOwnerBucketIdsByAddress(Web3.to_checksum_address(address)).call()
-        return result
-
 
     def add_policy_to_bucket(
         self,

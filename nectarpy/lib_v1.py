@@ -4,7 +4,6 @@ import time
 import dill
 from web3.types import TxReceipt
 from web3.exceptions import ContractLogicError
-import sys
 from nectarpy.common import encryption
 from nectarpy.common.blockchain_init import blockchain_init
 
@@ -14,6 +13,7 @@ class NectarClient:
     """Client for sending queries to Nectar"""
     def __init__(self, api_secret: str, mode: str = "moonbeam"):
         blockchain_init(self, api_secret, mode)
+        self.check_if_is_valid_user_role()
 
 
     def sans_hex_prefix(self, hexval: str) -> str:
@@ -21,14 +21,6 @@ class NectarClient:
         if hexval.startswith("0x"):
             return hexval[2:]
         return hexval
-
-
-    def get_bucket_ids(
-        self
-    ) -> list:
-        """Get all bucket ids from blockchain"""
-        result = self.EoaBond.functions.getAllBucketIds().call()
-        return result
 
 
     def read_policy(self, policy_id: int) -> dict:
@@ -53,11 +45,14 @@ class NectarClient:
         }
 
 
-    def get_user_role(
+    def check_if_is_valid_user_role(
         self
     ) -> str:
         """Getting current role"""
         roleName = self.UserRole.functions.getUserRole(self.account["address"]).call()
+        if roleName not in ["DA"]:
+            raise RuntimeError("Unauthorized action: Your role does not have permission to perform this operation")
+        print(f"Current user role: {roleName}")
         return roleName
 
 
@@ -169,13 +164,10 @@ class NectarClient:
         is_separate_data : bool =False,
         bucket_ids: list = None,
         policy_indexes: list = None
-       
     ) -> tuple:
         """Sends a query along with a payment"""
         print("Checking the current logged-in user's role.")
-        roleName = self.get_user_role()        
-        if (roleName != 'DA'):
-            raise RuntimeError("Unauthorized action: Your role does not have permission to perform this operation")
+        self.check_if_is_valid_user_role()
         print("Sending query to blockchain...")
         price = self.get_pay_amount(bucket_ids, policy_indexes)
         """Approves a payment, sends a query, then fetches the result"""
