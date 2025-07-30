@@ -9,7 +9,7 @@ RUN rm -rf /app/docker /app/script
 RUN pip3 install --no-cache-dir "web3<7.0.0" python-dotenv hpke dill
 
 # Remove all files that start with '_da_'
-RUN find /app -maxdepth 1 -type f -name '*_da_*' -delete
+RUN find /app -maxdepth 2 -type f -name '*_da_*' -delete
 
 # Prepare README.md file
 RUN rm -rf /app/README-DA.md
