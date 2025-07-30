@@ -125,11 +125,29 @@ class Nectar:
         usd_price: float,
     ) -> int:
         """Set a new on-chain policy"""
-        if len(allowed_addresses) == 0:
-            raise RuntimeError("allowed_addresses check failed.")
         print("adding new policy...")
         print(f'web 3 account {self.account["address"]}')
         self.check_if_is_valid_user_role()
+        
+        if len(allowed_addresses) == 0:
+            raise RuntimeError("allowed_addresses check failed.")
+        
+        if len(allowed_columns) == 0 :
+            raise RuntimeError("allowed_columns check failed.")
+        
+        if len(allowed_categories) == 0 :
+            raise RuntimeError("allowed_categories check failed.")
+        
+        if valid_days <= 0:
+            raise RuntimeError("valid_days must be greater than 0.")
+        
+        if usd_price <= 0:
+            raise ValueError("usd_price must be greater than 0.")
+
+        if not isinstance(usd_price, (int, float)):
+            raise TypeError("usd_price is invalid.")
+
+      
         price = Web3.to_wei(usd_price, "mwei")
         policy_id = secrets.randbits(256)
         edo = datetime.now() + timedelta(days=valid_days)
@@ -214,6 +232,25 @@ class Nectar:
     ) -> int:
         """Set a new on-chain bucket"""
         print("adding new bucket...")
+        if not isinstance(policy_ids, list) or len(policy_ids) == 0:
+            raise ValueError("policy_ids must be a non-empty list")
+        
+        if not isinstance(use_allowlists, list):
+            raise TypeError("use_allowlists must be a list of booleans")
+        for flag in use_allowlists:
+            if not isinstance(flag, bool):
+                raise TypeError(f"Invalid use_allowlists element: {flag}, must be bool")
+        
+        if not isinstance(data_format, str) or not data_format.strip():
+            raise ValueError("data_format must be a non-empty string")
+
+        allowed_formats = ["std1"]
+        if data_format not in allowed_formats:
+            raise ValueError(f"Invalid data_format: {data_format}, must be one of {allowed_formats}")
+
+        if not isinstance(node_address, str) or not node_address.strip():
+            raise ValueError("node_address must be a non-empty string")
+        
         bucket_id = secrets.randbits(256)
         print(f'use_allowlists =====>{use_allowlists}')
         tx_built = self.EoaBond.functions.addBucket(
@@ -224,7 +261,7 @@ class Nectar:
                 "nonce": self.web3.eth.get_transaction_count(self.account["address"]),
             }
         )
-        print(f'tx_built =====>{tx_built}')
+        
         tx_signed = self.web3.eth.account.sign_transaction(
             tx_built, self.account["private_key"]
         )
