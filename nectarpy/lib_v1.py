@@ -156,7 +156,7 @@ class NectarClient:
             print("-" * 50)
         return query_index
 
-
+    
     def byoc_query(
         self,
         pre_compute_func = None,
@@ -168,8 +168,42 @@ class NectarClient:
         """Sends a query along with a payment"""
         print("Checking the current logged-in user's role.")
         self.check_if_is_valid_user_role()
+         
+        if pre_compute_func is not None and not callable(pre_compute_func):
+            raise TypeError("pre_compute_func must be a callable function or None")
+
+        if main_func is not None and not callable(main_func):
+            raise TypeError("main_func must be a callable function or None")
+
+        if not isinstance(is_separate_data, bool):
+            raise TypeError("is_separate_data must be a boolean")
+        
+        if len(bucket_ids) != len(policy_indexes):
+            raise ValueError("Length of bucket_ids and policy_indexes must match")
+
+        # Validate bucket_ids
+        if not isinstance(bucket_ids, list) or len(bucket_ids) == 0:
+            raise ValueError("bucket_ids must be a non-empty list")
+        
+        if not isinstance(policy_indexes, list) or len(policy_indexes) == 0:
+            raise ValueError("policy_indexes must be a non-empty list")
+        if len(bucket_ids) == 1:
+            # Single worker
+            if main_func is None or not callable(main_func):
+                raise ValueError("Single worker requires a valid main_func")
+        else:
+            if is_separate_data:
+                if pre_compute_func is None or not callable(pre_compute_func):
+                    raise ValueError("Multiple workers with is_separate_data=True require a valid pre_compute_func")
+                if main_func is None or not callable(main_func):
+                    raise ValueError("Multiple workers with is_separate_data=True require a valid main_func")
+            else:
+                if main_func is None or not callable(main_func):
+                    raise ValueError("Multiple workers with is_separate_data=False require a valid main_func")
+
         print("Sending query to blockchain...")
         price = self.get_pay_amount(bucket_ids, policy_indexes)
+       
         """Approves a payment, sends a query, then fetches the result"""
         self.approve_payment(price)
         query_str = {
