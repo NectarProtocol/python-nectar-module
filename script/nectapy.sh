@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-WORKING_DIR='/home/ec2-user/python-nectar-module'
-CREDENTIALS_DIR='/home/ec2-user/tamarin-credentials/nectarpy'
+WORKING_DIR='/work/python-nectar-module'
+CREDENTIALS_DIR='/work/authen-files/backend-api'
 
 # Function to display usage/help
 function show_help {
@@ -49,9 +49,9 @@ IMAGE_NAME="nectapy-$MODE"
 
 # Set port mapping based on mode
 if [ "$MODE" = "da" ]; then
-    HOST_PORT=8884
+    HOST_PORT=8888
 else
-    HOST_PORT=8885
+    HOST_PORT=8889
 fi
 
 case "$ACTION" in
