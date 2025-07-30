@@ -251,6 +251,11 @@ class Nectar:
         if not isinstance(node_address, str) or not node_address.strip():
             raise ValueError("node_address must be a non-empty string")
         
+        if len(use_allowlists) != len(policy_ids):
+            raise ValueError(
+                f"use_allowlists length ({len(use_allowlists)}) must equal policy_ids length ({len(policy_ids)})"
+            )
+        
         bucket_id = secrets.randbits(256)
         print(f'use_allowlists =====>{use_allowlists}')
         tx_built = self.EoaBond.functions.addBucket(
@@ -320,5 +325,6 @@ class Nectar:
         tx_signed = self.web3.eth.account.sign_transaction(
             tx_built, self.account["private_key"]
         )
-        tx_hash = self.web3.eth.send_raw_transaction(tx_signed.raw_transaction)
+        tx_hash = self.web3.eth.send_raw_transaction(tx_signed.rawTransaction)
+        print("policy deactivated - done")
         return self.web3.eth.wait_for_transaction_receipt(tx_hash)
