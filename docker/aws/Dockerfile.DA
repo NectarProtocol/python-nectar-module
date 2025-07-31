@@ -1,20 +1,26 @@
-FROM jupyter/base-notebook:ubuntu-22.04
+FROM jupyter/base-notebook:ubuntu-22.04 AS base
+RUN pip3 install --no-cache-dir "web3<7.0.0" python-dotenv hpke dill
+
+FROM base AS app
 WORKDIR /app
 
-COPY --chown=1000:100 . /app
-RUN ls -alFh /app
+# Copy entire project to /app
+COPY --chown=1000:100 . /app/main
+COPY --chown=1000:100 sample /app/origin-sample
+RUN ls -alFh /app/main
 
 # Remove docker folder
 RUN rm -rf /app/docker /app/script
-RUN pip3 install --no-cache-dir "web3<7.0.0" python-dotenv hpke dill
 
 # Remove all files that start with '_do_'
 RUN find /app -maxdepth 2 -type f -name '*_do_*' -delete
+RUN rm -rf /app/main/sample/*
 
 # Prepare README.md file
 RUN rm -rf /app/README.md
-RUN mv /app/README-DA.md /app/README.md
+RUN mv /app/main/README-DA.md /app/main/README.md
 
+# Copy and set up entrypoint
 COPY --chown=1000:100 docker/aws/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 

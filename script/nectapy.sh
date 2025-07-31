@@ -1,8 +1,9 @@
 #!/bin/bash
 set -e
 
-WORKING_DIR='/home/ec2-user/python-nectar-module'
-CREDENTIALS_DIR='/home/ec2-user/tamarin-credentials/nectarpy'
+WORKING_DIR='/work/python-nectar-module'
+CREDENTIALS_DIR='/work/authen-files/backend-api'
+MOUNT_FOLDER=/work/mount/nectarpy
 
 # Function to display usage/help
 function show_help {
@@ -22,8 +23,8 @@ if [ "$WORKING_DIR" != "$(pwd)" ]; then
     exit 1
 fi
 
-# Check that exactly two arguments are provided
-if [ "$#" -ne 2 ]; then
+# Check that exactly two or three arguments are provided
+if [ "$#" -ne 2 ] && [ "$#" -ne 3 ]; then
     show_help
     exit 1
 fi
@@ -64,11 +65,31 @@ case "$ACTION" in
         docker build -f "./docker/aws/Dockerfile.$(echo $MODE | tr '[:lower:]' '[:upper:]')" -t "$IMAGE_NAME" .
         ;;
     run)
+        FULL_MOUNT_FOLDER=$(echo "$MOUNT_FOLDER/$MODE" | tr '[:upper:]' '[:lower:]')
+        # If the params is force like "run da/do force", then remove the mount folder
+        if [ "$#" -eq 3 ] && [ "$3" = "--force" ]; then
+            print_step "Removing existing mount folder ($FULL_MOUNT_FOLDER)..."
+            rm -rf "$FULL_MOUNT_FOLDER"
+        fi
+        # Create mount folder if it doesn't exist (lower case)
+        echo "Full mount folder: $FULL_MOUNT_FOLDER"
+        if [ ! -d "$FULL_MOUNT_FOLDER" ]; then
+            print_step "Creating mount folder ($MOUNT_FOLDER)..."
+            mkdir -p "$FULL_MOUNT_FOLDER"
+        fi
+        print_step "Changing permissions of mount folder ($FULL_MOUNT_FOLDER)..."
+        chmod 777 -R "$FULL_MOUNT_FOLDER"
+
         print_step "Removing existing container ($CONTAINER_NAME) if it exists..."
         docker rm -f "$CONTAINER_NAME" || true
         print_step "Starting container ($CONTAINER_NAME) with host port $HOST_PORT..."
-        docker run --restart always -d -p ${HOST_PORT}:9000 --name "$CONTAINER_NAME" "$IMAGE_NAME"
+        docker run --restart always -d \
+                   -p ${HOST_PORT}:9000 \
+                   --name "$CONTAINER_NAME" \
+                   -v "$FULL_MOUNT_FOLDER":/app/main/sample \
+                   "$IMAGE_NAME"
         print_step "Container started."
+        print_step "Mounted folder: $FULL_MOUNT_FOLDER"
         ;;
     debug)
         docker logs -f "$CONTAINER_NAME" --tail 150
