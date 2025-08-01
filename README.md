@@ -93,6 +93,7 @@ TEE_DATA_URL = "tls://<ip-address>:5229"
 bucket_id = nectar.add_bucket(
     policy_ids=[policy_id],
     data_format="std1",
+    use_allowlists=[True],
     node_address=TEE_DATA_URL,
 )
 ```
