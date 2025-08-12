@@ -154,7 +154,7 @@ class NectarClient:
             print("-" * 50)
             print(existing_result)
             print("-" * 50)
-        return query_index
+        return existing_result
 
     
     def byoc_query(

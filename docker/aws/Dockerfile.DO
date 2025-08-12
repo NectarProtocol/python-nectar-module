@@ -5,9 +5,11 @@ FROM base AS app
 WORKDIR /app
 
 # Copy entire project to /app
-COPY --chown=1000:100 . /app
+COPY --chown=1000:100 . /app/main
 COPY --chown=1000:100 sample /app/origin-sample
 RUN ls -alFh /app
+
+ENV PYTHONPATH="/app/main:$PYTHONPATH"
 
 # Clean up unnecessary folders
 RUN rm -rf /app/docker /app/script
