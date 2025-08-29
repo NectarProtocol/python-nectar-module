@@ -192,14 +192,10 @@ class NectarClient:
             if main_func is None or not callable(main_func):
                 raise ValueError("Single worker requires a valid main_func")
         else:
-            if is_separate_data:
-                if pre_compute_func is None or not callable(pre_compute_func):
-                    raise ValueError("Multiple workers with is_separate_data=True require a valid pre_compute_func")
-                if main_func is None or not callable(main_func):
-                    raise ValueError("Multiple workers with is_separate_data=True require a valid main_func")
-            else:
-                if main_func is None or not callable(main_func):
-                    raise ValueError("Multiple workers with is_separate_data=False require a valid main_func")
+            if pre_compute_func is None or not callable(pre_compute_func):
+                    raise ValueError("Multiple workers require a valid pre_compute_func")
+            if main_func is None or not callable(main_func):
+                    raise ValueError("Multiple workers require a valid main_func")
 
         print("Sending query to blockchain...")
         price = self.get_pay_amount(bucket_ids, policy_indexes)
