@@ -1,6 +1,7 @@
 # PYTHON NECTAR MODULE for Data Analyst
 
-This is a Python API module designed to run queries on Nectar.
+This Python module lets you connect to Nectar so you can run queries on
+Data Owner's data.
 
 ---
 ## Installation
@@ -9,7 +10,6 @@ This is a Python API module designed to run queries on Nectar.
 pip3 install nectarpy
 ```
 
----
 ## Python Example
 
 ```python
@@ -17,7 +17,7 @@ from nectarpy import NectarClient
 ```
 
 ```python
-API_SECRET = "<api-secret>"
+API_SECRET = "<api-secret>"  # Replace with your actual API secret. You can obtain the secret key when you generate the EOA key pair.
 ```
 
 ```python
@@ -97,8 +97,8 @@ Data from multiple sources must be combined and processed together.
 
 | Parameter         | Required | Description                                                                                                                                                 |
 | ----------------- | :------: | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| pre_compute_func  | ✔️       | A local function that runs on each worker node during distributed processing when **is_separate_data** is True. Otherwise, it acts as a data filter function. |
-| is_separate_data  | ✔️       | Set to **True** to process each dataset independently. Default: False – Coordinated processing.                                                             |
+| pre_compute_func  | ✔️       | A local function that runs on each worker node during distributed processing when **is_separate_data** is **True**. Otherwise, it acts as a data filter function. |
+| is_separate_data  | ✔️       | Set to **True** to process each dataset independently. Default: **False** – Coordinated processing.                                                             |
 | main_func         | ✔️       | The main analysis function to be applied to the merged dataset. The **list_of_partial_result** parameter represents either all raw data (in coordinated) or all intermediate results (in distributed). |
 | bucket_ids        | ✔️       | A list of data source identifiers used to locate and load datasets. When the list contains only one item, the **pre_compute_func** parameter is ignored.     |
 | policy_indexes    | ✔️       | List of policy index values, one for each **bucket_id**, to apply policy control.                                                                           |
@@ -106,17 +106,35 @@ Data from multiple sources must be combined and processed together.
 **Example:** Multi-source regression analysis, correlation across datasets.
 
 ```python
-def main_mean_func(list_of_partial_result):
+def pre_compute_func():
     import pandas as pd
-    all_data = pd.concat(list_of_partial_result, ignore_index=True)
-    total_count = len(all_data)
-    heart_rate_mean = all_data['heart_rate'].mean() if total_count else 0.0
-    
-    if total_count == 0:
-        return {"count": 0, "mean": 0.0}
+    import logging as logger
+    df = pd.read_csv("/app/data/worker-data.csv")
+    filtered = df[(df["gender"] == "MALE") & (df["age"] > 50)]
+    return filtered
 
+
+def main_func(list_of_partial_result):
+    import pandas as pd
+ 
+    all_data = pd.concat(list_of_partial_result, ignore_index=True)
+    filter_data = all_data[all_data['age'] >= 50]
+
+    heart_rate_sum = filter_data["heart_rate"].sum()
+    total_count = len(filter_data)
+    heart_rate_mean = filter_data["heart_rate"].mean() if total_count else 0.0
+ 
     return {
-        "count": int(total_count),
-        "mean": float(heart_rate_mean),
+        "avg_heart_rate": float(heart_rate_mean),
+        "total_heart_rate": int(heart_rate_sum),
+        "total_count": int(total_count)
     }
+
+result = nectar_client.byoc_query(
+    pre_compute_func=pre_compute_mean_func,
+    main_func=main_mean_func,
+    is_separate_data=False,
+    bucket_ids=[bucket_id],
+    policy_indexes=[0],
+)
 ```
