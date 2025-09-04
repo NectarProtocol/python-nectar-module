@@ -1,9 +1,9 @@
 #!/bin/bash
 set -e
 
-WORKING_DIR='/work/python-nectar-module'
-CREDENTIALS_DIR='/work/authen-files/backend-api'
-MOUNT_FOLDER=/work/mount/nectarpy
+WORKING_DIR='/home/ec2-user/python-nectar-module'
+CREDENTIALS_DIR='/home/ec2-user/tamarin-credentials/json'
+MOUNT_FOLDER=/home/ec2-user/nectarpy-mount
 
 # Function to display usage/help
 function show_help {
