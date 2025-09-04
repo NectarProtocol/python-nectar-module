@@ -24,6 +24,6 @@ nectar = Nectar(API_SECRET)
 ```
 
 ## 3. How to use in details:
- - Data Analyst role: [API document for Data Analyst](https://nectar-da.tamarin.health/)
+ • Data Analyst role: [API document for Data Analyst](https://nectar-da.tamarin.health/)
 
- - Data Owner role: [API document for Data Owner](https://nectar-do.tamarin.health/)
+ • Data Owner role: [API document for Data Owner](https://nectar-do.tamarin.health/)
