@@ -130,7 +130,7 @@ class NectarClient:
 
     def wait_for_query_result(self, user_index) -> str:
         """Waits for the query result to be available"""
-        print(f"waiting for mpc result...")
+        print(f"waiting for result...")
         return self.get_result(user_index)
     
 
