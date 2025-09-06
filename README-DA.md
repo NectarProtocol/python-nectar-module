@@ -1,6 +1,7 @@
 # PYTHON NECTAR MODULE for Data Analyst
 
-This is a Python API module designed to run queries on Nectar.
+This Python module lets you connect to Nectar so you can run queries on
+Data Owner's data.
 
 ---
 ## Installation
@@ -9,7 +10,6 @@ This is a Python API module designed to run queries on Nectar.
 pip3 install nectarpy
 ```
 
----
 ## Python Example
 
 ```python
@@ -17,254 +17,124 @@ from nectarpy import NectarClient
 ```
 
 ```python
-API_SECRET = "<api-secret>"
+API_SECRET = "<api-secret>"  # Replace with your actual API secret. You can obtain the secret key when you generate the EOA key pair.
 ```
 
 ```python
 nectar_client = NectarClient(API_SECRET)
 ```
 
-```python
-bucket_ids = nectar_client.get_bucket_ids()
-```
+## 3. Processing Methods
 
----
-## Functions
+### Method 1: Single Data Source
 
-### Aggregate Types: Linear Regression, Mean, Count, Variance, Minimum, Maximum, Sum
+Analyze data from a single dataset.
 
-#### **Use Case 1: Linear Regression analysis**
+| Parameter      | Required | Description                                                                 |
+| -------------- | :------: | --------------------------------------------------------------------------- |
+| main_func      | ✔️       | The main analysis function to be applied over the merged dataset.           |
+| bucket_ids     | ✔️       | List of data source identifiers used to locate and load datasets.           |
+| policy_indexes | ✔️       | List of policy index values, one for each `bucket_id`, to apply policy control. |
 
-The `linear_regression_func` method performs a simple linear regression analysis on worker data, predicting **height** based on **heart rate** and **age**.
-
-**Returns a dictionary containing:**
-- **`coef`**: The regression coefficients for "heart_rate" and "age" (list).
-- **`intercept`**: The y-intercept of the regression line (float).
-- **`count`**: Total number of **age** records.
+**Example:** One hospital, one clinic.
 
 ```python
-def linear_regression_func():
+def min_func():
     import pandas as pd
-    from sklearn.linear_model import LinearRegression
     df = pd.read_csv("/app/data/worker-data.csv")
-    df_filtered = df[df['age'] > 10]
-    x_values = ["heart_rate", "age"]
-    y_values = 'height'
-    model = LinearRegression()
-    X_train = df_filtered[x_values]
-    Y_train = df_filtered[y_values]
-    model.fit(X_train, Y_train)
+    
+    if df.empty:
+        return {"min_heart_rate": None, "min_age": None}
+
     return {
-        "coef": model.coef_.tolist(),
-        "intercept": float(model.intercept_),
-        "count": len(df_filtered),
+        "min_heart_rate": int(df["heart_rate"].min()),
+        "min_age": int(df["age"].min()),
     }
 ```
+### Method 2: Distributed Processing
 
----
-#### **Use Case 2: Counting records**
+Each dataset is processed independently at the compute node, and results are later aggregated on the scheduler.
 
-The `count_func` method calculates the total number of records (rows) in the **worker-data.csv** file.
+| Parameter         | Required | Description                                                                                                                                                 |
+| ----------------- | :------: | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| pre_compute_func  | ✔️       | A local function that runs on each worker node during distributed processing when **is_separate_data** is **True**. Otherwise, it acts as a data filter function. |
+| is_separate_data  | ✔️       | Set to **True** to process each dataset independently. Default: **False** – Coordinated processing.                                                         |
+| main_func         | ✔️       | The main analysis function to be applied to the merged dataset. The **list_of_partial_result** parameter represents either all raw data (coordinated) or intermediate results (distributed). |
+| bucket_ids        | ✔️       | A list of data source identifiers used to locate and load datasets. When the list contains only one item, the **pre_compute_func** parameter is ignored.     |
+| policy_indexes    | ✔️       | List of policy index values, one for each **bucket_id**, to apply policy control.                                                                           |
 
-**Returns:**
-- **`count`**: The total number of records.
+**Example:** Total patient count across hospitals, calculate averages separately then combine.
 
 ```python
-def count_func():
+def pre_compute_mean_func():
     import pandas as pd
+    import logging as logger
     df = pd.read_csv("/app/data/worker-data.csv")
-    return {"count": len(df)}
-```
+  
+    filtered = df[(df["gender"] == "MALE") & (df["age"] > 50)]
+    return {"sum": filtered["heart_rate"].sum(), "count": len(filtered)}
 
----
-#### **Use Case 3: Calculating Mean age**
 
-The `mean_func` method calculates the **average age** of workers and the total number of records.
+def main_mean_func(list_of_partial_result):
+    total_heart = sum(d.get("sum", 0) for d in list_of_partial_result)
+    total_count = sum(d.get("count", 0) for d in list_of_partial_result)
+    return {
+        "avg_heart_rate": total_heart / total_count if total_count else 0,
+        "total_count": total_count
+    }
 
-**Returns:**
-- **`count`**: Total number of records.
-- **`mean`**: Average age of workers.
-
-```python
-def mean_func():
-    import pandas as pd
-    df = pd.read_csv("/app/data/worker-data.csv")
-    count = len(df)
-    mean = df['age'].mean()
-    return {"count": count, "mean": mean}
-```
-
----
-#### **Use Case 4: Calculating Variance of age**
-
-The `variance_func` method calculates the **total number of records**, the **average age**, and the **variance of age**.
-
-**Returns:**
-- **`count`**: Total number of records.
-- **`mean`**: Average age of workers.
-- **`variance`**: Variance of the age column.
-
-```python
-def variance_func():
-    import pandas as pd
-    df = pd.read_csv("/app/data/worker-data.csv")
-    count = len(df)
-    mean = df['age'].mean()
-    variance = df['age'].var()
-    return {"count": count, "mean": mean, "variance": variance}
-```
-
----
-## Queries
-
-### Single Data Node
-
-```python
 result = nectar_client.byoc_query(
-    linear_regression_func,                         # Custom function to execute (e.g., a count or aggregation - one of Aggregate Types)
-    bucket_ids=[bucket_ids[0]],                     # List of data bucket IDs to query
-    operation="linear-regression",                  # Operation name
-    policy_indexes=[0, 0],                          # Indexes of access policies for each bucket
-    use_allowlists=[True, False],                   # Flags to indicate whether to enforce allowlist checks per bucket
-    access_indexes=[0, 0]                           # Indexes for selecting which access level (of keys) to use, if applicable
-)
-```
-
-```python
-result = nectar_client.byoc_query(
-    count_func,                                     # Custom function to execute (e.g., a count or aggregation - one of Aggregate Types)
-    bucket_ids=[bucket_ids[0]],                     # List of data bucket IDs to query
-    operation="count",                              # Operation name
-    policy_indexes=[0, 0],                          # Indexes of access policies for each bucket
-    use_allowlists=[True, False],                   # Flags to indicate whether to enforce allowlist checks per bucket
-    access_indexes=[0, 0]                           # Indexes for selecting which access level (of keys) to use, if applicable
-)
-```
-
-```python
-result = nectar_client.byoc_query(
-    mean_func,                                      # Custom function to execute (e.g., a count or aggregation - one of Aggregate Types)
-    bucket_ids=[bucket_ids[0]],                     # List of data bucket IDs to query
-    operation="mean",                               # Operation name
-    policy_indexes=[0, 0],                          # Indexes of access policies for each bucket
-    use_allowlists=[True, False],                   # Flags to indicate whether to enforce allowlist checks per bucket
-    access_indexes=[0, 0]                           # Indexes for selecting which access level (of keys) to use, if applicable
-)
-```
-
-```python
-result = nectar_client.byoc_query(
-    variance_func,                                  # Custom function to execute (e.g., a count or aggregation - one of Aggregate Types)
-    bucket_ids=[bucket_ids[0]],                     # List of data bucket IDs to query
-    operation="variance",                           # Operation name
-    policy_indexes=[0, 0],                          # Indexes of access policies for each bucket
-    use_allowlists=[True, False],                   # Flags to indicate whether to enforce allowlist checks per bucket
-    access_indexes=[0, 0]                           # Indexes for selecting which access level (of keys) to use, if applicable
-)
-```
-
-### Multiple Data Nodes
-
-```python
-result = nectar_client.byoc_query(
-    linear_regression_func,                         # Custom function to execute (e.g., a count or aggregation - one of Aggregate Types)
-    bucket_ids=[bucket_ids[0], bucket_ids[1]],      # List of data bucket IDs to query
-    operation="linear-regression",                  # Operation name
-    policy_indexes=[0, 0],                          # Indexes of access policies for each bucket
-    use_allowlists=[True, False],                   # Flags to indicate whether to enforce allowlist checks per bucket
-    access_indexes=[0, 0]                           # Indexes for selecting which access level (of keys) to use, if applicable
-)
-```
-
-```python
-result = nectar_client.byoc_query(
-    count_func,                                     # Custom function to execute (e.g., a count or aggregation - one of Aggregate Types)
-    bucket_ids=[bucket_ids[0], bucket_ids[1]],      # List of data bucket IDs to query
-    operation="count",                              # Operation name
-    policy_indexes=[0, 0],                          # Indexes of access policies for each bucket
-    use_allowlists=[True, False],                   # Flags to indicate whether to enforce allowlist checks per bucket
-    access_indexes=[0, 0]                           # Indexes for selecting which access level (of keys) to use, if applicable
-)
-```
-
-```python
-result = nectar_client.byoc_query(
-    mean_func,                                      # Custom function to execute (e.g., a count or aggregation - one of Aggregate Types)
-    bucket_ids=[bucket_ids[0], bucket_ids[1]],      # List of data bucket IDs to query
-    operation="mean",                               # Operation name
-    policy_indexes=[0, 0],                          # Indexes of access policies for each bucket
-    use_allowlists=[True, False],                   # Flags to indicate whether to enforce allowlist checks per bucket
-    access_indexes=[0, 0]                           # Indexes for selecting which access level (of keys) to use, if applicable
-)
-```
-
-```python
-result = nectar_client.byoc_query(
-    variance_func,                                  # Custom aggregation function to be executed (e.g., variance, count, sum)
-    bucket_ids=[bucket_ids[0], bucket_ids[1]],      # List of bucket IDs containing the data to query
-    operation="variance",                           # Name of the aggregation operation to perform
-    policy_indexes=[0, 0],                          # Indexes of the policies to apply for each respective bucket
-    use_allowlists=[True, False],                   # Flags to indicate whether to enforce allowlist checks per bucket
-    access_indexes=[0, 0]                           # Indexes for selecting which access level (of keys) to use, if applicable
-)
-
-```
-
----
-
-### **Parameters**
-
-| Parameter        | Description                                                                 |
-|------------------|-----------------------------------------------------------------------------|
-| `<your function>` | A user-defined Python function (e.g., `lambda df: df.count()` - one of Aggregate Types) to run over the datasets. |
-| `bucket_ids`      | List of bucket IDs (strings or ints) to query from.                          |
-| `operation`       | A string representing the operation name (for combination purposes).    |
-| `policy_indexes`  | A list of integers referencing policy positions matching each bucket.        |
-| `use_allowlists`  | Flags to indicate whether to enforce allowlist checks per bucket  |
-| `access_indexes`  | Indexes for selecting which access level (of keys) to use, if applicable     |
-
----
-
-```python
-print(result)
-```
-
----
-## Exception handling
-
-### **Bucket ID does not exist**
-
-```python
-bucket_not_exist = "30551459429423590702715106722240816746282150213228561545827912304803497819734"
-```
-
-```python
-result = nectar_client.byoc_query(
-    variance_func,
-    bucket_ids=[bucket_not_exist],
-    operation="variance",
+    pre_compute_func=pre_compute_mean_func,
+    main_func=main_mean_func,
+    is_separate_data=True,
+    bucket_ids=[bucket_id],
     policy_indexes=[0],
-    use_allowlists=[True],
-    access_indexes=[0]
 )
 ```
+### Method 3: Coordinated Processing
 
-### **Incorrect operation name**
+Data from multiple sources must be combined and processed together.
+
+| Parameter         | Required | Description                                                                                                                                                 |
+| ----------------- | :------: | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| pre_compute_func  | ✔️       | A local function that runs on each worker node during distributed processing when **is_separate_data** is **True**. Otherwise, it acts as a data filter function. |
+| is_separate_data  | ✔️       | Set to **True** to process each dataset independently. Default: **False** – Coordinated processing.                                                             |
+| main_func         | ✔️       | The main analysis function to be applied to the merged dataset. The **list_of_partial_result** parameter represents either all raw data (in coordinated) or all intermediate results (in distributed). |
+| bucket_ids        | ✔️       | A list of data source identifiers used to locate and load datasets. When the list contains only one item, the **pre_compute_func** parameter is ignored.     |
+| policy_indexes    | ✔️       | List of policy index values, one for each **bucket_id**, to apply policy control.                                                                           |
+
+**Example:** Multi-source regression analysis, correlation across datasets.
 
 ```python
+def pre_compute_func():
+    import pandas as pd
+    import logging as logger
+    df = pd.read_csv("/app/data/worker-data.csv")
+    filtered = df[(df["gender"] == "MALE") & (df["age"] > 50)]
+    return filtered
+
+
+def main_func(list_of_partial_result):
+    import pandas as pd
+ 
+    all_data = pd.concat(list_of_partial_result, ignore_index=True)
+    filter_data = all_data[all_data['age'] >= 50]
+
+    heart_rate_sum = filter_data["heart_rate"].sum()
+    total_count = len(filter_data)
+    heart_rate_mean = filter_data["heart_rate"].mean() if total_count else 0.0
+ 
+    return {
+        "avg_heart_rate": float(heart_rate_mean),
+        "total_heart_rate": int(heart_rate_sum),
+        "total_count": int(total_count)
+    }
+
 result = nectar_client.byoc_query(
-    mean_func,
-    bucket_ids=[bucket_ids[0]],
-    operation="variance",
+    pre_compute_func=pre_compute_mean_func,
+    main_func=main_mean_func,
+    is_separate_data=False,
+    bucket_ids=[bucket_id],
     policy_indexes=[0],
-    use_allowlists=[True],
-    access_indexes=[0]
 )
-```
-
-## Refer to the example in the sample folder
-
-```python
-test_da_exception_case.ipynb
-test_da_exception_case.ipynb
 ```
