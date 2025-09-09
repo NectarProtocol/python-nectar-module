@@ -288,28 +288,6 @@ class Nectar:
             "deactivated": bucket_data[3],
         }
 
-    def add_policy_to_bucket(
-        self,
-        bucket_id: int,
-        policy_id: int,
-    ) -> TxReceipt:
-        """Add an access policy to a bucket"""
-        print("adding bucket to policy...")
-        tx_built = self.EoaBond.functions.addPolicyToBucket(
-            bucket_id, policy_id
-        ).build_transaction(
-            {
-                "from": self.account["address"],
-                "nonce": self.web3.eth.get_transaction_count(self.account["address"]),
-            }
-        )
-        tx_signed = self.web3.eth.account.sign_transaction(
-            tx_built, self.account["private_key"]
-        )
-        tx_hash = self.web3.eth.send_raw_transaction(tx_signed.raw_transaction)
-        return self.web3.eth.wait_for_transaction_receipt(tx_hash)
-
-
     def deactivate_policy(
         self,
         policy_id: int,
