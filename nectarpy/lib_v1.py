@@ -78,7 +78,7 @@ class NectarClient:
 
     def approve_payment(self, amount: int) -> TxReceipt:
         """Approves an EC20 query payment"""
-        print("approving query payment...")
+        
         approve_tx = self.USDC.functions.approve(
             self.qm_contract_addr, amount
         ).build_transaction(
@@ -135,7 +135,7 @@ class NectarClient:
     
 
     def get_result(self, query_index):
-        print(f"query number: {query_index}" )
+        
         result = ""
         while not result:
             query = self.QueryManager.functions.getQueryByUserIndex(self.account["address"], query_index).call()
@@ -145,7 +145,7 @@ class NectarClient:
                 if jdata.startswith("Something went wrong"):
                     raise RuntimeError(f"Query failed: {jdata}")
                 result = json.loads(query[2])
-        print("decrypting result...")
+        
         if result.startswith("Something went wrong"):
             raise RuntimeError(f"Query failed: {result}")
         else:
@@ -166,7 +166,7 @@ class NectarClient:
         policy_indexes: list = None
     ) -> tuple:
         """Sends a query along with a payment"""
-        print("Checking the current logged-in user's role.")
+       
         self.check_if_is_valid_user_role()
          
         if pre_compute_func is not None and not callable(pre_compute_func):
