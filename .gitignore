@@ -9,3 +9,5 @@ play
 build
 .ipynb_checkpoints
 .Trash-*
+# E2E testing - never commit local configs
+nectarpy/config/blockchain.local.json
