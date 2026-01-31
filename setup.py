@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="nectarpy",
-    version="0.13.0",
+    version="0.15.0",
     packages=find_packages(),
     include_package_data=True,
     license="Apache License 2.0",
@@ -14,6 +14,7 @@ setup(
     author_email="phil@tamarin.health",
     package_data={
         "": ["*.json"],
+        "": ["config/*.json"],
     },
     classifiers=[
         "Programming Language :: Python :: 3",
@@ -21,5 +22,5 @@ setup(
         "Operating System :: OS Independent",
     ],
     python_requires=">=3.8, <4",
-    install_requires=["web3<7.0.0", "python-dotenv", "hpke"],
+    install_requires=["web3<7.0.0", "python-dotenv", "hpke", "dill"],
 )
