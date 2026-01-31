@@ -19,7 +19,7 @@ The library exports two role-specific clients:
 
 Your `API_SECRET` is your API account private key (hex string). It may start with `0x`.
 
-Supported mode values are: `moonbeam` (default), `moonbase`, `localhost`.
+Supported mode value: `moonbeam` (default)
 
 ### Data Owner (DO)
 
