@@ -32,6 +32,9 @@ class Nectar:
                 return True
         return False
 
+    def _next_nonce(self) -> int:
+        return self.web3.eth.get_transaction_count(self.account["address"], "pending")
+
 
     def sans_hex_prefix(self, hexval: str) -> str:
         """Returns a hex string without the 0x prefix"""
@@ -47,7 +50,7 @@ class Nectar:
         ).build_transaction(
             {
                 "from": self.account["address"],
-                "nonce": self.web3.eth.get_transaction_count(self.account["address"]),
+                "nonce": self._next_nonce(),
             }
         )
         approve_signed = self.web3.eth.account.sign_transaction(
@@ -84,7 +87,7 @@ class Nectar:
         ).build_transaction(
             {
                 "from": self.account["address"],
-                "nonce": self.web3.eth.get_transaction_count(self.account["address"]),
+                "nonce": self._next_nonce(),
             }
         )
         query_signed = self.web3.eth.account.sign_transaction(
@@ -107,7 +110,8 @@ class Nectar:
             if query[2] != '':
                 result = query[2]
         print("decrypting result...")
-        return encryption.hybrid_decrypt_v1(self, result)
+        decrypted = encryption.hybrid_decrypt_v1(self, result)
+        return self._decode_decrypted_result(decrypted)
 
 
     def get_pay_amount(self, bucket_ids: list, policy_indexes: list) -> int:
@@ -212,7 +216,7 @@ class Nectar:
             ).build_transaction(
                 {
                     "from": self.account["address"],
-                    "nonce": self.web3.eth.get_transaction_count(self.account["address"]),
+                    "nonce": self._next_nonce(),
                 }
             )
         else:
@@ -226,14 +230,16 @@ class Nectar:
             ).build_transaction(
                 {
                     "from": self.account["address"],
-                    "nonce": self.web3.eth.get_transaction_count(self.account["address"]),
+                    "nonce": self._next_nonce(),
                 }
             )
         tx_signed = self.web3.eth.account.sign_transaction(
             tx_built, self.account["private_key"]
         )
         tx_hash = self.web3.eth.send_raw_transaction(tx_signed.rawTransaction)
-        self.web3.eth.wait_for_transaction_receipt(tx_hash)
+        receipt = self.web3.eth.wait_for_transaction_receipt(tx_hash)
+        if receipt.status != 1:
+            raise RuntimeError(f"add_policy transaction reverted: {tx_hash.hex()}")
         if (
             identity_disclosure_operations
             and not supports_add_policy_with_disclosure
@@ -319,7 +325,7 @@ class Nectar:
             policy_id, operations
         ).build_transaction({
             "from": self.account["address"],
-            "nonce": self.web3.eth.get_transaction_count(self.account["address"]),
+            "nonce": self._next_nonce(),
         })
         tx_signed = self.web3.eth.account.sign_transaction(
             tx_built, self.account["private_key"]
@@ -368,7 +374,7 @@ class Nectar:
         ).build_transaction(
             {
                 "from": self.account["address"],
-                "nonce": self.web3.eth.get_transaction_count(self.account["address"]),
+                "nonce": self._next_nonce(),
             }
         )
         
@@ -376,7 +382,9 @@ class Nectar:
             tx_built, self.account["private_key"]
         )
         tx_hash = self.web3.eth.send_raw_transaction(tx_signed.rawTransaction)
-        self.web3.eth.wait_for_transaction_receipt(tx_hash)
+        receipt = self.web3.eth.wait_for_transaction_receipt(tx_hash)
+        if receipt.status != 1:
+            raise RuntimeError(f"add_bucket transaction reverted: {tx_hash.hex()}")
         print("adding new bucket - done")
         return bucket_id
 
@@ -402,7 +410,7 @@ class Nectar:
         tx_built = self.EoaBond.functions.deactivatePolicy(policy_id).build_transaction(
             {
                 "from": self.account["address"],
-                "nonce": self.web3.eth.get_transaction_count(self.account["address"]),
+                "nonce": self._next_nonce(),
             }
         )
         tx_signed = self.web3.eth.account.sign_transaction(
@@ -410,3 +418,25 @@ class Nectar:
         )
         tx_hash = self.web3.eth.send_raw_transaction(tx_signed.rawTransaction)
         return self.web3.eth.wait_for_transaction_receipt(tx_hash)
+    def _decode_decrypted_result(self, decrypted):
+        if isinstance(decrypted, (bytes, bytearray)):
+            raw = bytes(decrypted)
+            try:
+                text = raw.decode("utf-8")
+                try:
+                    return json.loads(text)
+                except Exception:
+                    return text
+            except Exception:
+                try:
+                    return dill.loads(raw)
+                except Exception:
+                    return raw
+
+        if isinstance(decrypted, str):
+            try:
+                return json.loads(decrypted)
+            except Exception:
+                return decrypted
+
+        return decrypted

@@ -55,6 +55,9 @@ class NectarClient:
             raise RuntimeError("Unauthorized action: Your role does not have permission to perform this operation")
         print(f"Current user role: {roleName}")
         return roleName
+    
+    def _next_nonce(self) -> int:
+        return self.web3.eth.get_transaction_count(self.account["address"], "pending")
 
 
     def get_pay_amount(self, bucket_ids: list, policy_indexes: list) -> int:
@@ -85,14 +88,17 @@ class NectarClient:
         ).build_transaction(
             {
                 "from": self.account["address"],
-                "nonce": self.web3.eth.get_transaction_count(self.account["address"]),
+                "nonce": self._next_nonce(),
             }
         )
         approve_signed = self.web3.eth.account.sign_transaction(
             approve_tx, self.account["private_key"]
         )
         approve_hash = self.web3.eth.send_raw_transaction(approve_signed.rawTransaction)
-        return self.web3.eth.wait_for_transaction_receipt(approve_hash)
+        receipt = self.web3.eth.wait_for_transaction_receipt(approve_hash)
+        if receipt.status != 1:
+            raise RuntimeError(f"approve transaction reverted: {approve_hash.hex()}")
+        return receipt
 
 
     def pay_query(
@@ -128,7 +134,7 @@ class NectarClient:
         ).build_transaction(
             {
                 "from": self.account["address"],
-                "nonce": self.web3.eth.get_transaction_count(self.account["address"]),
+                "nonce": self._next_nonce(),
             }
         )
         query_signed = self.web3.eth.account.sign_transaction(
@@ -136,6 +142,8 @@ class NectarClient:
         )
         query_hash = self.web3.eth.send_raw_transaction(query_signed.rawTransaction)
         query_receipt = self.web3.eth.wait_for_transaction_receipt(query_hash)
+        if query_receipt.status != 1:
+            raise RuntimeError(f"pay_query transaction reverted: {query_hash.hex()}")
         return user_index, query_receipt
 
 
@@ -143,6 +151,36 @@ class NectarClient:
         """Waits for the query result to be available"""
         print(f"waiting for result...")
         return self.get_result(user_index)
+    
+    def _decode_decrypted_result(self, decrypted):
+        """
+        Normalize decrypted query payload into a Python object.
+        Supports:
+        - JSON bytes/strings (categorized responses)
+        - dill-serialized bytes (legacy payloads)
+        - passthrough for already-decoded objects
+        """
+        if isinstance(decrypted, (bytes, bytearray)):
+            raw = bytes(decrypted)
+            try:
+                text = raw.decode("utf-8")
+                try:
+                    return json.loads(text)
+                except Exception:
+                    return text
+            except Exception:
+                try:
+                    return dill.loads(raw)
+                except Exception:
+                    return raw
+
+        if isinstance(decrypted, str):
+            try:
+                return json.loads(decrypted)
+            except Exception:
+                return decrypted
+
+        return decrypted
     
 
     def get_result(self, query_index):
@@ -161,6 +199,7 @@ class NectarClient:
             raise RuntimeError(f"Query failed: {result}")
         else:
             existing_result = encryption.hybrid_decrypt_v1(self, result)
+            existing_result = self._decode_decrypted_result(existing_result)
             print("result:")
             print("-" * 50)
             print(existing_result)
