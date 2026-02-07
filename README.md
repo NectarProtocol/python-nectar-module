@@ -106,4 +106,4 @@ print(result)
 
 • Data Analyst role: [API document for Data Analyst](https://nectar.tamarin.health/guidance-nectar/da)
 
- • Data Owner role: [API document for Data Owner](https://nectar.tamarin.health/guidance-nectar/do)
+• Data Owner role: [API document for Data Owner](https://nectar.tamarin.health/guidance-nectar/do)
