@@ -8,6 +8,7 @@ from nectarpy.common import encryption
 from nectarpy.common.blockchain_init import blockchain_init
 
 current_dir = os.path.dirname(__file__)
+VALID_DISCLOSURE_OPERATIONS = ["count", "sum", "mean", "min", "max"]
 
 class Nectar:
     """Client for sending queries to Nectar"""
@@ -15,6 +16,21 @@ class Nectar:
     def __init__(self, api_secret: str, mode: str = "moonbeam"):
         blockchain_init(self, api_secret, mode)
         self.check_if_is_valid_user_role()
+
+    def _contract_supports_function(self, function_name: str, arg_count: int = None) -> bool:
+        """Check function support by ABI when available; default to True for unknown ABI."""
+        contract = getattr(self, "EoaBond", None)
+        abi = getattr(contract, "abi", None)
+        if not isinstance(abi, list):
+            return True
+        for item in abi:
+            if item.get("type") != "function":
+                continue
+            if item.get("name") != function_name:
+                continue
+            if arg_count is None or len(item.get("inputs", [])) == arg_count:
+                return True
+        return False
 
 
     def sans_hex_prefix(self, hexval: str) -> str:
@@ -123,6 +139,7 @@ class Nectar:
         allowed_columns: list,
         valid_days: int,
         usd_price: float,
+        identity_disclosure_operations: list = None,
     ) -> int:
         """Set a new on-chain policy"""
         print("adding new policy...")
@@ -147,7 +164,16 @@ class Nectar:
         if not isinstance(usd_price, (int, float)):
             raise TypeError("usd_price is invalid.")
 
-      
+        if identity_disclosure_operations is None:
+            identity_disclosure_operations = []
+
+        for op in identity_disclosure_operations:
+            if op not in VALID_DISCLOSURE_OPERATIONS:
+                raise ValueError(
+                    f"Invalid operation: {op}. "
+                    f"Must be one of {VALID_DISCLOSURE_OPERATIONS}"
+                )
+
         price = Web3.to_wei(usd_price, "mwei")
         policy_id = secrets.randbits(256)
         edo = datetime.now() + timedelta(days=valid_days)
@@ -157,24 +183,65 @@ class Nectar:
             checksum_address = Web3.to_checksum_address(allowed_addresses[i])
             allowed_addresses[i] = checksum_address
         
-        tx_built = self.EoaBond.functions.addPolicy(
-            policy_id,
-            allowed_categories,
-            allowed_addresses,
-            allowed_columns,
-            exp_date,
-            price,
-        ).build_transaction(
-            {
-                "from": self.account["address"],
-                "nonce": self.web3.eth.get_transaction_count(self.account["address"]),
-            }
+        supports_add_policy_with_disclosure = self._contract_supports_function(
+            "addPolicy", arg_count=7
         )
+        supports_set_disclosure = self._contract_supports_function(
+            "setIdentityDisclosureOperations", arg_count=2
+        )
+
+        if (
+            identity_disclosure_operations
+            and not supports_add_policy_with_disclosure
+            and not supports_set_disclosure
+        ):
+            raise RuntimeError(
+                "Connected EoaBond ABI does not support identity disclosure "
+                "operations. Update contract/ABI before using this feature."
+            )
+
+        if supports_add_policy_with_disclosure:
+            tx_built = self.EoaBond.functions.addPolicy(
+                policy_id,
+                allowed_categories,
+                allowed_addresses,
+                allowed_columns,
+                exp_date,
+                price,
+                identity_disclosure_operations,
+            ).build_transaction(
+                {
+                    "from": self.account["address"],
+                    "nonce": self.web3.eth.get_transaction_count(self.account["address"]),
+                }
+            )
+        else:
+            tx_built = self.EoaBond.functions.addPolicy(
+                policy_id,
+                allowed_categories,
+                allowed_addresses,
+                allowed_columns,
+                exp_date,
+                price,
+            ).build_transaction(
+                {
+                    "from": self.account["address"],
+                    "nonce": self.web3.eth.get_transaction_count(self.account["address"]),
+                }
+            )
         tx_signed = self.web3.eth.account.sign_transaction(
             tx_built, self.account["private_key"]
         )
         tx_hash = self.web3.eth.send_raw_transaction(tx_signed.rawTransaction)
         self.web3.eth.wait_for_transaction_receipt(tx_hash)
+        if (
+            identity_disclosure_operations
+            and not supports_add_policy_with_disclosure
+            and supports_set_disclosure
+        ):
+            self.set_identity_disclosure_operations(
+                policy_id, identity_disclosure_operations
+            )
         return policy_id
 
 
@@ -205,6 +272,13 @@ class Nectar:
     def read_policy(self, policy_id: int) -> dict:
         """Fetches a policy on the blockchain"""
         policy_data = self.EoaBond.functions.policies(policy_id).call()
+        identity_disclosure_operations = []
+        if self._contract_supports_function(
+            "getIdentityDisclosureOperations", arg_count=1
+        ):
+            identity_disclosure_operations = self.EoaBond.functions.getIdentityDisclosureOperations(
+                policy_id
+            ).call()
         return {
             "policy_id": policy_id,
             "allowed_categories": self.EoaBond.functions.getAllowedCategories(
@@ -220,7 +294,38 @@ class Nectar:
             "price": policy_data[1],
             "owner": policy_data[2],
             "deactivated": policy_data[3],
+            "identity_disclosure_operations": identity_disclosure_operations,
         }
+
+
+    def set_identity_disclosure_operations(
+        self, policy_id: int, operations: list
+    ) -> dict:
+        """Update which operations allow categorized results for a policy."""
+        if not self._contract_supports_function(
+            "setIdentityDisclosureOperations", arg_count=2
+        ):
+            raise RuntimeError(
+                "Connected EoaBond ABI does not support setIdentityDisclosureOperations."
+            )
+        for op in operations:
+            if op not in VALID_DISCLOSURE_OPERATIONS:
+                raise ValueError(
+                    f"Invalid operation: {op}. "
+                    f"Must be one of {VALID_DISCLOSURE_OPERATIONS}"
+                )
+
+        tx_built = self.EoaBond.functions.setIdentityDisclosureOperations(
+            policy_id, operations
+        ).build_transaction({
+            "from": self.account["address"],
+            "nonce": self.web3.eth.get_transaction_count(self.account["address"]),
+        })
+        tx_signed = self.web3.eth.account.sign_transaction(
+            tx_built, self.account["private_key"]
+        )
+        tx_hash = self.web3.eth.send_raw_transaction(tx_signed.rawTransaction)
+        return self.web3.eth.wait_for_transaction_receipt(tx_hash)
 
 
     def add_bucket(

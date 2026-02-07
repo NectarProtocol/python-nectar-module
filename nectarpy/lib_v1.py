@@ -8,6 +8,7 @@ from nectarpy.common import encryption
 from nectarpy.common.blockchain_init import blockchain_init
 
 current_dir = os.path.dirname(__file__)
+VALID_DISCLOSURE_OPERATIONS = ["count", "sum", "mean", "min", "max"]
 
 class NectarClient:
     """Client for sending queries to Nectar"""
@@ -100,10 +101,20 @@ class NectarClient:
         price: int,
         bucket_ids: list,
         policy_indexes: list,
+        categorize_by_do: bool = False,
+        aggregate_type: str = None,
     ) -> tuple:
         """Sends a query along with a payment"""
         print("encrypting query under star node key...")
         ppcCmd = encryption.hybrid_encrypt_v1(self, query_str, policy_indexes)
+        # Expose categorization metadata to backend-api (outside encrypted payload)
+        if categorize_by_do or aggregate_type:
+            ppc_data = json.loads(ppcCmd)
+            if categorize_by_do:
+                ppc_data["categorizeByDO"] = True
+            if aggregate_type:
+                ppc_data["aggregate"] = {"type": aggregate_type}
+            ppcCmd = json.dumps(ppc_data)
         print("sending query with payment...")
         user_index = self.QueryManager.functions.getUserIndex(
             self.account["address"]
@@ -163,7 +174,9 @@ class NectarClient:
         main_func = None,
         is_separate_data : bool =False,
         bucket_ids: list = None,
-        policy_indexes: list = None
+        policy_indexes: list = None,
+        categorize_by_do: bool = False,
+        aggregate_type: str = None,
     ) -> tuple:
         """Sends a query along with a payment"""
        
@@ -196,6 +209,16 @@ class NectarClient:
                     raise ValueError("Multiple workers require a valid pre_compute_func")
             if main_func is None or not callable(main_func):
                     raise ValueError("Multiple workers require a valid main_func")
+        if categorize_by_do and not aggregate_type:
+            raise ValueError(
+                "categorize_by_do requires aggregate_type "
+                "(e.g., 'count', 'sum', 'mean', 'min', 'max')"
+            )
+        if categorize_by_do and aggregate_type not in VALID_DISCLOSURE_OPERATIONS:
+            raise ValueError(
+                f"Invalid aggregate_type for categorize_by_do: {aggregate_type}. "
+                f"Must be one of {VALID_DISCLOSURE_OPERATIONS}"
+            )
 
         print("Sending query to blockchain...")
         price = self.get_pay_amount(bucket_ids, policy_indexes)
@@ -203,12 +226,18 @@ class NectarClient:
         """Approves a payment, sends a query, then fetches the result"""
         self.approve_payment(price)
         query_str = {
-            "pre_compute_func": dill.dumps(pre_compute_func) if pre_compute_func else None,
-            "main_func": dill.dumps(main_func) if main_func else None,
-            "is_separate_data": is_separate_data
+            "pre_compute_func": dill.dumps(pre_compute_func, recurse=True) if pre_compute_func else None,
+            "main_func": dill.dumps(main_func, recurse=True) if main_func else None,
+            "is_separate_data": is_separate_data,
+            "categorizeByDO": categorize_by_do,
         }
         user_index, _ = self.pay_query(
-            query_str, price,bucket_ids=bucket_ids, policy_indexes=policy_indexes
+            query_str,
+            price,
+            bucket_ids=bucket_ids,
+            policy_indexes=policy_indexes,
+            categorize_by_do=categorize_by_do,
+            aggregate_type=aggregate_type,
         )
         query_res = self.wait_for_query_result(user_index)
         return query_res
