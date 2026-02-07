@@ -1,11 +1,11 @@
 {
     "localhost": {
-        "url": "http://localhost:8545",
+        "url": "http://127.0.0.1:8545",
         "chainId": "0x7A69",
-        "usdc": "0x941c42263080E3fec35F52A344DfCa0bEda103F4",
-        "queryManager": "0xE6f79f5fC9752Aa833c9aA0d4C1BE3cE2AfF746E",
-        "eoaBond": "0x2741607B0aF9C40c72a07d5e66f6d09B3da1d4D6",
-        "userRole": "0xA644A48b7Db5a7fF7E4052D6b9280b17a4feD61b"
+        "usdc": "0x948B3c65b89DF0B4894ABE91E6D02FE579834F8F",
+        "queryManager": "0xbCF26943C0197d2eE0E5D05c716Be60cc2761508",
+        "eoaBond": "0x05Aa229Aec102f78CE0E852A812a388F076Aa555",
+        "userRole": "0xcA03Dc4665A8C3603cb4Fd5Ce71Af9649dC00d44"
     },
     "moonbase": {
         "url": "https://rpc.api.moonbase.moonbeam.network",
