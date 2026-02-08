@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="nectar-server",
+    name="nectarpy",
     version="0.13.0",
     packages=find_packages(),
     include_package_data=True,

@@ -4,7 +4,6 @@ import secrets
 from datetime import datetime, timedelta
 from web3 import Web3
 from web3.types import TxReceipt
-
 from nectarpy.common import encryption
 from nectarpy.common.blockchain_init import blockchain_init
 
@@ -15,6 +14,7 @@ class Nectar:
 
     def __init__(self, api_secret: str, mode: str = "moonbeam"):
         blockchain_init(self, api_secret, mode)
+        self.check_if_is_valid_user_role()
 
 
     def sans_hex_prefix(self, hexval: str) -> str:
@@ -104,13 +104,17 @@ class Nectar:
         prices = [self.read_policy(p)["price"] for p in policy_ids]
         return sum(prices)
 
-    def get_user_role(
+
+    def check_if_is_valid_user_role(
         self
     ) -> str:
         """Getting current role"""
         roleName = self.UserRole.functions.getUserRole(self.account["address"]).call()
+        if roleName not in ["DO"]:
+            raise RuntimeError("Unauthorized action: Your role does not have permission to perform this operation")
+        print(f"Current user role: {roleName}")
         return roleName
-    
+
 
     def add_policy(
         self,
@@ -121,12 +125,29 @@ class Nectar:
         usd_price: float,
     ) -> int:
         """Set a new on-chain policy"""
+        print("adding new policy...")
+        print(f'web 3 account {self.account["address"]}')
+        self.check_if_is_valid_user_role()
+        
         if len(allowed_addresses) == 0:
             raise RuntimeError("allowed_addresses check failed.")
-        print("adding new policy...")
-        roleName = self.get_user_role()
-        if (roleName != 'DO'):
-            raise RuntimeError("Unauthorized action: Your role does not have permission to perform this operation")
+        
+        if len(allowed_columns) == 0 :
+            raise RuntimeError("allowed_columns check failed.")
+        
+        if len(allowed_categories) == 0 :
+            raise RuntimeError("allowed_categories check failed.")
+        
+        if valid_days <= 0:
+            raise RuntimeError("valid_days must be greater than 0.")
+        
+        if usd_price <= 0:
+            raise ValueError("usd_price must be greater than 0.")
+
+        if not isinstance(usd_price, (int, float)):
+            raise TypeError("usd_price is invalid.")
+
+      
         price = Web3.to_wei(usd_price, "mwei")
         policy_id = secrets.randbits(256)
         edo = datetime.now() + timedelta(days=valid_days)
@@ -157,6 +178,30 @@ class Nectar:
         return policy_id
 
 
+    def get_bucket_ids(
+        self
+        , address: str = None
+            ) -> list:
+        print("DO get get_bucket_ids...")
+        try:
+            if address is None:
+                # If no address is provided, use the account's address
+                # Get all bucket ids from blockchain by DO's Web3 address"""
+                from_address = self.account["address"]
+                result = self.EoaBond.functions.getAllBucketIdsByOwner().call({
+                    'from': from_address
+                })
+                print(f"result ===> {result}") 
+                return result
+            else:
+                # Ensure the provided address is a checksum address
+                print(f"DO get get_bucket_ids...{address}")
+                return self.EoaBond.functions.getOwnerBucketIdsByAddress(Web3.to_checksum_address(address)).call()
+        except Exception as e:
+            print("get_bucket_ids call failed:", e)
+            return []
+
+
     def read_policy(self, policy_id: int) -> dict:
         """Fetches a policy on the blockchain"""
         policy_data = self.EoaBond.functions.policies(policy_id).call()
@@ -181,24 +226,47 @@ class Nectar:
     def add_bucket(
         self,
         policy_ids: list,
+        use_allowlists: list,
         data_format: str,
         node_address: str,
     ) -> int:
         """Set a new on-chain bucket"""
         print("adding new bucket...")
-        roleName = self.get_user_role()
-        if (roleName != 'DO'):
-            raise RuntimeError("Unauthorized action: Your role does not have permission to perform this operation")
+        if not isinstance(policy_ids, list) or len(policy_ids) == 0:
+            raise ValueError("policy_ids must be a non-empty list")
+        
+        if not isinstance(use_allowlists, list):
+            raise TypeError("use_allowlists must be a list of booleans")
+        for flag in use_allowlists:
+            if not isinstance(flag, bool):
+                raise TypeError(f"Invalid use_allowlists element: {flag}, must be bool")
+        
+        if not isinstance(data_format, str) or not data_format.strip():
+            raise ValueError("data_format must be a non-empty string")
+
+        allowed_formats = ["std1"]
+        if data_format not in allowed_formats:
+            raise ValueError(f"Invalid data_format: {data_format}, must be one of {allowed_formats}")
+
+        if not isinstance(node_address, str) or not node_address.strip():
+            raise ValueError("node_address must be a non-empty string")
+        
+        if len(use_allowlists) != len(policy_ids):
+            raise ValueError(
+                f"use_allowlists length ({len(use_allowlists)}) must equal policy_ids length ({len(policy_ids)})"
+            )
         
         bucket_id = secrets.randbits(256)
+        print(f'use_allowlists =====>{use_allowlists}')
         tx_built = self.EoaBond.functions.addBucket(
-            bucket_id, policy_ids, data_format, node_address
+            bucket_id, policy_ids,use_allowlists, data_format, node_address
         ).build_transaction(
             {
                 "from": self.account["address"],
                 "nonce": self.web3.eth.get_transaction_count(self.account["address"]),
             }
         )
+        
         tx_signed = self.web3.eth.account.sign_transaction(
             tx_built, self.account["private_key"]
         )
@@ -219,29 +287,6 @@ class Nectar:
             "owner": bucket_data[2],
             "deactivated": bucket_data[3],
         }
-
-
-    def add_policy_to_bucket(
-        self,
-        bucket_id: int,
-        policy_id: int,
-    ) -> TxReceipt:
-        """Add an access policy to a bucket"""
-        print("adding bucket to policy...")
-        tx_built = self.EoaBond.functions.addPolicyToBucket(
-            bucket_id, policy_id
-        ).build_transaction(
-            {
-                "from": self.account["address"],
-                "nonce": self.web3.eth.get_transaction_count(self.account["address"]),
-            }
-        )
-        tx_signed = self.web3.eth.account.sign_transaction(
-            tx_built, self.account["private_key"]
-        )
-        tx_hash = self.web3.eth.send_raw_transaction(tx_signed.raw_transaction)
-        return self.web3.eth.wait_for_transaction_receipt(tx_hash)
-
 
     def deactivate_policy(
         self,

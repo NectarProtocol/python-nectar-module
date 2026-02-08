@@ -12,7 +12,8 @@ BASE_PATH = os.path.dirname(os.path.abspath(__file__))
 
 def req_json(rel_path):
     parent_folder_path =  Path(__file__).resolve().parent.parent
-    file_path = parent_folder_path / rel_path
+    config_path = os.getenv('BLOCKCHAIN_CREDENTIAL',parent_folder_path)
+    file_path = config_path / rel_path
     with open(file_path, 'r', encoding='utf-8') as file:
         jsonStr = file.read()
     return json.loads(jsonStr)

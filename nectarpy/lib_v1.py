@@ -4,7 +4,6 @@ import time
 import dill
 from web3.types import TxReceipt
 from web3.exceptions import ContractLogicError
-
 from nectarpy.common import encryption
 from nectarpy.common.blockchain_init import blockchain_init
 
@@ -14,6 +13,7 @@ class NectarClient:
     """Client for sending queries to Nectar"""
     def __init__(self, api_secret: str, mode: str = "moonbeam"):
         blockchain_init(self, api_secret, mode)
+        self.check_if_is_valid_user_role()
 
 
     def sans_hex_prefix(self, hexval: str) -> str:
@@ -23,16 +23,9 @@ class NectarClient:
         return hexval
 
 
-    def get_bucket_ids(
-        self
-    ) -> list:
-        """Get all bucket ids from blockchain"""
-        result = self.EoaBond.functions.getAllBucketIds().call()
-        return result
-
-
     def read_policy(self, policy_id: int) -> dict:
         """Fetches a policy on the blockchain"""
+        
         policy_data = self.EoaBond.functions.policies(policy_id).call()
         return {
             "policy_id": policy_id,
@@ -52,11 +45,14 @@ class NectarClient:
         }
 
 
-    def get_user_role(
+    def check_if_is_valid_user_role(
         self
     ) -> str:
         """Getting current role"""
         roleName = self.UserRole.functions.getUserRole(self.account["address"]).call()
+        if roleName not in ["DA"]:
+            raise RuntimeError("Unauthorized action: Your role does not have permission to perform this operation")
+        print(f"Current user role: {roleName}")
         return roleName
 
 
@@ -82,7 +78,7 @@ class NectarClient:
 
     def approve_payment(self, amount: int) -> TxReceipt:
         """Approves an EC20 query payment"""
-        print("approving query payment...")
+        
         approve_tx = self.USDC.functions.approve(
             self.qm_contract_addr, amount
         ).build_transaction(
@@ -102,14 +98,12 @@ class NectarClient:
         self,
         query_str,
         price: int,
-        use_allowlists: list,
-        access_indexes: list,
         bucket_ids: list,
         policy_indexes: list,
     ) -> tuple:
         """Sends a query along with a payment"""
         print("encrypting query under star node key...")
-        ppcCmd = encryption.hybrid_encrypt_v1(self, query_str, policy_indexes, access_indexes, use_allowlists)
+        ppcCmd = encryption.hybrid_encrypt_v1(self, query_str, policy_indexes)
         print("sending query with payment...")
         user_index = self.QueryManager.functions.getUserIndex(
             self.account["address"]
@@ -117,8 +111,6 @@ class NectarClient:
         query_tx = self.QueryManager.functions.payQuery(
             user_index,
             ppcCmd,
-            use_allowlists,
-            access_indexes,
             price,
             bucket_ids,
             policy_indexes,
@@ -138,12 +130,12 @@ class NectarClient:
 
     def wait_for_query_result(self, user_index) -> str:
         """Waits for the query result to be available"""
-        print(f"waiting for mpc result...")
+        print(f"waiting for result...")
         return self.get_result(user_index)
     
 
     def get_result(self, query_index):
-        print(f"query number: {query_index}" )
+        
         result = ""
         while not result:
             query = self.QueryManager.functions.getQueryByUserIndex(self.account["address"], query_index).call()
@@ -153,7 +145,7 @@ class NectarClient:
                 if jdata.startswith("Something went wrong"):
                     raise RuntimeError(f"Query failed: {jdata}")
                 result = json.loads(query[2])
-        print("decrypting result...")
+        
         if result.startswith("Something went wrong"):
             raise RuntimeError(f"Query failed: {result}")
         else:
@@ -162,33 +154,61 @@ class NectarClient:
             print("-" * 50)
             print(existing_result)
             print("-" * 50)
-        return query_index
+        return existing_result
 
-
+    
     def byoc_query(
         self,
-        func,
-        bucket_ids: list,
-        operation: str = None,
-        policy_indexes: list = None,
-        use_allowlists: list = None,
-        access_indexes: list = None,
+        pre_compute_func = None,
+        main_func = None,
+        is_separate_data : bool =False,
+        bucket_ids: list = None,
+        policy_indexes: list = None
     ) -> tuple:
         """Sends a query along with a payment"""
-        print("Checking the current logged-in user's role.")
-        roleName = self.get_user_role()
-        if (roleName != 'DA'):
-            raise RuntimeError("Unauthorized action: Your role does not have permission to perform this operation")
+       
+        self.check_if_is_valid_user_role()
+         
+        if pre_compute_func is not None and not callable(pre_compute_func):
+            raise TypeError("pre_compute_func must be a callable function or None")
+
+        if main_func is not None and not callable(main_func):
+            raise TypeError("main_func must be a callable function or None")
+
+        if not isinstance(is_separate_data, bool):
+            raise TypeError("is_separate_data must be a boolean")
+        
+        if len(bucket_ids) != len(policy_indexes):
+            raise ValueError("Length of bucket_ids and policy_indexes must match")
+
+        # Validate bucket_ids
+        if not isinstance(bucket_ids, list) or len(bucket_ids) == 0:
+            raise ValueError("bucket_ids must be a non-empty list")
+        
+        if not isinstance(policy_indexes, list) or len(policy_indexes) == 0:
+            raise ValueError("policy_indexes must be a non-empty list")
+        if len(bucket_ids) == 1:
+            # Single worker
+            if main_func is None or not callable(main_func):
+                raise ValueError("Single worker requires a valid main_func")
+        else:
+            if pre_compute_func is None or not callable(pre_compute_func):
+                    raise ValueError("Multiple workers require a valid pre_compute_func")
+            if main_func is None or not callable(main_func):
+                    raise ValueError("Multiple workers require a valid main_func")
+
         print("Sending query to blockchain...")
         price = self.get_pay_amount(bucket_ids, policy_indexes)
+       
         """Approves a payment, sends a query, then fetches the result"""
         self.approve_payment(price)
         query_str = {
-            "func": dill.dumps(func),
-            "operation": operation
+            "pre_compute_func": dill.dumps(pre_compute_func) if pre_compute_func else None,
+            "main_func": dill.dumps(main_func) if main_func else None,
+            "is_separate_data": is_separate_data
         }
         user_index, _ = self.pay_query(
-            query_str, price, use_allowlists=use_allowlists, access_indexes=access_indexes, bucket_ids=bucket_ids, policy_indexes=policy_indexes
+            query_str, price,bucket_ids=bucket_ids, policy_indexes=policy_indexes
         )
         query_res = self.wait_for_query_result(user_index)
         return query_res
