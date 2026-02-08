@@ -11,7 +11,7 @@ def build_web3_mock():
     web3 = MagicMock()
     web3.eth.get_transaction_count.return_value = 1
     web3.eth.send_raw_transaction.return_value = b"tx_hash"
-    web3.eth.wait_for_transaction_receipt.return_value = {"status": 1}
+    web3.eth.wait_for_transaction_receipt.return_value = types.SimpleNamespace(status=1)
     web3.eth.account.sign_transaction.return_value = types.SimpleNamespace(
         rawTransaction=b"signed_tx"
     )
@@ -119,11 +119,15 @@ class NectarPolicyDisclosureTests(unittest.TestCase):
             "0xowner",
             False,
         ]
-        nectar.EoaBond.functions.getAllowedCategories.return_value.call.return_value = ["*"]
+        nectar.EoaBond.functions.getAllowedCategories.return_value.call.return_value = [
+            "*"
+        ]
         nectar.EoaBond.functions.getAllowedAddresses.return_value.call.return_value = [
             "0x1"
         ]
-        nectar.EoaBond.functions.getAllowedColumns.return_value.call.return_value = ["age"]
+        nectar.EoaBond.functions.getAllowedColumns.return_value.call.return_value = [
+            "age"
+        ]
         nectar.EoaBond.functions.getIdentityDisclosureOperations.return_value.call.return_value = [
             "count"
         ]
@@ -136,7 +140,9 @@ class NectarPolicyDisclosureTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             nectar.set_identity_disclosure_operations(1, ["variance"])
 
-    def test_add_policy_falls_back_to_legacy_addpolicy_signature_when_only_6arg_available(self):
+    def test_add_policy_falls_back_to_legacy_addpolicy_signature_when_only_6arg_available(
+        self,
+    ):
         nectar = object.__new__(Nectar)
         nectar.check_if_is_valid_user_role = MagicMock()
         nectar.account = {"address": "0xabc", "private_key": "0x123"}
@@ -185,7 +191,9 @@ class NectarPolicyDisclosureTests(unittest.TestCase):
         nectar.EoaBond.functions.addPolicy.return_value.build_transaction.return_value = {
             "tx": "built"
         }
-        nectar.set_identity_disclosure_operations = MagicMock(return_value={"status": 1})
+        nectar.set_identity_disclosure_operations = MagicMock(
+            return_value={"status": 1}
+        )
 
         nectar.add_policy(
             allowed_categories=["*"],
@@ -232,22 +240,71 @@ class NectarPolicyDisclosureTests(unittest.TestCase):
             "0xowner",
             False,
         ]
-        nectar.EoaBond.functions.getAllowedCategories.return_value.call.return_value = ["*"]
+        nectar.EoaBond.functions.getAllowedCategories.return_value.call.return_value = [
+            "*"
+        ]
         nectar.EoaBond.functions.getAllowedAddresses.return_value.call.return_value = [
             "0x1"
         ]
-        nectar.EoaBond.functions.getAllowedColumns.return_value.call.return_value = ["age"]
+        nectar.EoaBond.functions.getAllowedColumns.return_value.call.return_value = [
+            "age"
+        ]
 
         policy = nectar.read_policy(42)
         self.assertEqual(policy["identity_disclosure_operations"], [])
 
-    def test_set_identity_disclosure_operations_rejects_when_contract_lacks_method(self):
+    def test_set_identity_disclosure_operations_rejects_when_contract_lacks_method(
+        self,
+    ):
         nectar = object.__new__(Nectar)
         nectar.EoaBond = MagicMock()
         nectar.EoaBond.abi = []
 
         with self.assertRaises(RuntimeError):
             nectar.set_identity_disclosure_operations(1, ["count"])
+
+
+class NectarPaymentStatusTests(unittest.TestCase):
+    def test_approve_payment_raises_on_revert(self):
+        nectar = object.__new__(Nectar)
+        nectar.account = {"address": "0xabc", "private_key": "0x123"}
+        nectar.qm_contract_addr = "0xqm"
+        nectar.web3 = build_web3_mock()
+        nectar.web3.eth.wait_for_transaction_receipt.return_value = types.SimpleNamespace(
+            status=0
+        )
+        nectar.USDC = MagicMock()
+        nectar.USDC.functions.approve.return_value.build_transaction.return_value = {
+            "tx": "built"
+        }
+
+        with self.assertRaises(RuntimeError):
+            nectar.approve_payment(10)
+
+    def test_pay_query_raises_on_revert(self):
+        nectar = object.__new__(Nectar)
+        nectar.account = {"address": "0xabc", "private_key": "0x123"}
+        nectar.web3 = build_web3_mock()
+        nectar.web3.eth.wait_for_transaction_receipt.return_value = types.SimpleNamespace(
+            status=0
+        )
+        nectar.QueryManager = MagicMock()
+        nectar.QueryManager.functions.getUserIndex.return_value.call.return_value = 7
+        nectar.QueryManager.functions.payQuery.return_value.build_transaction.return_value = {
+            "tx": "built"
+        }
+
+        with patch("nectarpy.lib.encryption.hybrid_encrypt_v1") as encrypt_mock:
+            encrypt_mock.return_value = "enc"
+            with self.assertRaises(RuntimeError):
+                nectar.pay_query(
+                    query="select *",
+                    price=10,
+                    use_allowlists=[True],
+                    access_indexes=[0],
+                    bucket_ids=[1],
+                    policy_indexes=[0],
+                )
 
 
 if __name__ == "__main__":
