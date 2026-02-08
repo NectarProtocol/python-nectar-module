@@ -57,7 +57,10 @@ class Nectar:
             approve_tx, self.account["private_key"]
         )
         approve_hash = self.web3.eth.send_raw_transaction(approve_signed.rawTransaction)
-        return self.web3.eth.wait_for_transaction_receipt(approve_hash)
+        receipt = self.web3.eth.wait_for_transaction_receipt(approve_hash)
+        if receipt.status != 1:
+            raise RuntimeError(f"approve transaction reverted: {approve_hash.hex()}")
+        return receipt
 
 
     def pay_query(
@@ -95,6 +98,8 @@ class Nectar:
         )
         query_hash = self.web3.eth.send_raw_transaction(query_signed.rawTransaction)
         query_receipt = self.web3.eth.wait_for_transaction_receipt(query_hash)
+        if query_receipt.status != 1:
+            raise RuntimeError(f"pay_query transaction reverted: {query_hash.hex()}")
         return user_index, query_receipt
 
 
