@@ -1,6 +1,6 @@
 {
     "localhost": {
-        "url": "http://localhost:8545",
+        "url": "http://127.0.0.1:8545",
         "chainId": "0x7A69",
         "usdc": "0x941c42263080E3fec35F52A344DfCa0bEda103F4",
         "queryManager": "0xE6f79f5fC9752Aa833c9aA0d4C1BE3cE2AfF746E",
