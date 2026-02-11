@@ -3,12 +3,14 @@ import time
 import secrets
 from datetime import datetime, timedelta
 from web3 import Web3
+from web3.exceptions import TimeExhausted
 from web3.types import TxReceipt
 from nectarpy.common import encryption
 from nectarpy.common.blockchain_init import blockchain_init
 
 current_dir = os.path.dirname(__file__)
 VALID_DISCLOSURE_OPERATIONS = ["count", "sum", "mean", "min", "max"]
+
 
 class Nectar:
     """Client for sending queries to Nectar"""
@@ -17,7 +19,9 @@ class Nectar:
         blockchain_init(self, api_secret, mode)
         self.check_if_is_valid_user_role()
 
-    def _contract_supports_function(self, function_name: str, arg_count: int = None) -> bool:
+    def _contract_supports_function(
+        self, function_name: str, arg_count: int = None
+    ) -> bool:
         """Check function support by ABI when available; default to True for unknown ABI."""
         contract = getattr(self, "EoaBond", None)
         abi = getattr(contract, "abi", None)
@@ -35,6 +39,17 @@ class Nectar:
     def _next_nonce(self) -> int:
         return self.web3.eth.get_transaction_count(self.account["address"], "pending")
 
+    def _wait_for_receipt(self, tx_hash, action: str) -> TxReceipt:
+        timeout = int(os.getenv("NECTAR_TX_RECEIPT_TIMEOUT", "180"))
+        poll_latency = int(os.getenv("NECTAR_TX_RECEIPT_POLL", "5"))
+        try:
+            return self.web3.eth.wait_for_transaction_receipt(
+                tx_hash, timeout=timeout, poll_latency=poll_latency
+            )
+        except TimeExhausted as exc:
+            raise TimeoutError(
+                f"{action} transaction not mined within {timeout}s: {tx_hash.hex()}"
+            ) from exc
 
     def sans_hex_prefix(self, hexval: str) -> str:
         """Returns a hex string without the 0x prefix"""
@@ -57,11 +72,10 @@ class Nectar:
             approve_tx, self.account["private_key"]
         )
         approve_hash = self.web3.eth.send_raw_transaction(approve_signed.rawTransaction)
-        receipt = self.web3.eth.wait_for_transaction_receipt(approve_hash)
+        receipt = self._wait_for_receipt(approve_hash, "approve")
         if receipt.status != 1:
             raise RuntimeError(f"approve transaction reverted: {approve_hash.hex()}")
         return receipt
-
 
     def pay_query(
         self,
@@ -97,11 +111,10 @@ class Nectar:
             query_tx, self.account["private_key"]
         )
         query_hash = self.web3.eth.send_raw_transaction(query_signed.rawTransaction)
-        query_receipt = self.web3.eth.wait_for_transaction_receipt(query_hash)
+        query_receipt = self._wait_for_receipt(query_hash, "pay_query")
         if query_receipt.status != 1:
             raise RuntimeError(f"pay_query transaction reverted: {query_hash.hex()}")
         return user_index, query_receipt
-
 
     def wait_for_query_result(self, user_index: str) -> str:
         """Waits for the query result to be available"""
@@ -112,12 +125,11 @@ class Nectar:
                 self.account["address"], user_index
             ).call()
             time.sleep(5)
-            if query[2] != '':
+            if query[2] != "":
                 result = query[2]
         print("decrypting result...")
         decrypted = encryption.hybrid_decrypt_v1(self, result)
         return self._decode_decrypted_result(decrypted)
-
 
     def get_pay_amount(self, bucket_ids: list, policy_indexes: list) -> int:
         policy_ids = []
@@ -129,17 +141,15 @@ class Nectar:
         prices = [self.read_policy(p)["price"] for p in policy_ids]
         return sum(prices)
 
-
-    def check_if_is_valid_user_role(
-        self
-    ) -> str:
+    def check_if_is_valid_user_role(self) -> str:
         """Getting current role"""
         roleName = self.UserRole.functions.getUserRole(self.account["address"]).call()
         if roleName not in ["DO"]:
-            raise RuntimeError("Unauthorized action: Your role does not have permission to perform this operation")
+            raise RuntimeError(
+                "Unauthorized action: Your role does not have permission to perform this operation"
+            )
         print(f"Current user role: {roleName}")
         return roleName
-
 
     def add_policy(
         self,
@@ -154,19 +164,19 @@ class Nectar:
         print("adding new policy...")
         print(f'web 3 account {self.account["address"]}')
         self.check_if_is_valid_user_role()
-        
+
         if len(allowed_addresses) == 0:
             raise RuntimeError("allowed_addresses check failed.")
-        
-        if len(allowed_columns) == 0 :
+
+        if len(allowed_columns) == 0:
             raise RuntimeError("allowed_columns check failed.")
-        
-        if len(allowed_categories) == 0 :
+
+        if len(allowed_categories) == 0:
             raise RuntimeError("allowed_categories check failed.")
-        
+
         if valid_days <= 0:
             raise RuntimeError("valid_days must be greater than 0.")
-        
+
         if usd_price <= 0:
             raise ValueError("usd_price must be greater than 0.")
 
@@ -187,11 +197,11 @@ class Nectar:
         policy_id = secrets.randbits(256)
         edo = datetime.now() + timedelta(days=valid_days)
         exp_date = int(time.mktime(edo.timetuple()))
-        
+
         for i in range(len(allowed_addresses)):
             checksum_address = Web3.to_checksum_address(allowed_addresses[i])
             allowed_addresses[i] = checksum_address
-        
+
         supports_add_policy_with_disclosure = self._contract_supports_function(
             "addPolicy", arg_count=7
         )
@@ -242,7 +252,7 @@ class Nectar:
             tx_built, self.account["private_key"]
         )
         tx_hash = self.web3.eth.send_raw_transaction(tx_signed.rawTransaction)
-        receipt = self.web3.eth.wait_for_transaction_receipt(tx_hash)
+        receipt = self._wait_for_receipt(tx_hash, "add_policy")
         if receipt.status != 1:
             raise RuntimeError(f"add_policy transaction reverted: {tx_hash.hex()}")
         if (
@@ -255,30 +265,27 @@ class Nectar:
             )
         return policy_id
 
-
-    def get_bucket_ids(
-        self
-        , address: str = None
-            ) -> list:
+    def get_bucket_ids(self, address: str = None) -> list:
         print("DO get get_bucket_ids...")
         try:
             if address is None:
                 # If no address is provided, use the account's address
                 # Get all bucket ids from blockchain by DO's Web3 address"""
                 from_address = self.account["address"]
-                result = self.EoaBond.functions.getAllBucketIdsByOwner().call({
-                    'from': from_address
-                })
-                print(f"result ===> {result}") 
+                result = self.EoaBond.functions.getAllBucketIdsByOwner().call(
+                    {"from": from_address}
+                )
+                print(f"result ===> {result}")
                 return result
             else:
                 # Ensure the provided address is a checksum address
                 print(f"DO get get_bucket_ids...{address}")
-                return self.EoaBond.functions.getOwnerBucketIdsByAddress(Web3.to_checksum_address(address)).call()
+                return self.EoaBond.functions.getOwnerBucketIdsByAddress(
+                    Web3.to_checksum_address(address)
+                ).call()
         except Exception as e:
             print("get_bucket_ids call failed:", e)
             return []
-
 
     def read_policy(self, policy_id: int) -> dict:
         """Fetches a policy on the blockchain"""
@@ -287,9 +294,9 @@ class Nectar:
         if self._contract_supports_function(
             "getIdentityDisclosureOperations", arg_count=1
         ):
-            identity_disclosure_operations = self.EoaBond.functions.getIdentityDisclosureOperations(
-                policy_id
-            ).call()
+            identity_disclosure_operations = (
+                self.EoaBond.functions.getIdentityDisclosureOperations(policy_id).call()
+            )
         return {
             "policy_id": policy_id,
             "allowed_categories": self.EoaBond.functions.getAllowedCategories(
@@ -307,7 +314,6 @@ class Nectar:
             "deactivated": policy_data[3],
             "identity_disclosure_operations": identity_disclosure_operations,
         }
-
 
     def set_identity_disclosure_operations(
         self, policy_id: int, operations: list
@@ -328,16 +334,17 @@ class Nectar:
 
         tx_built = self.EoaBond.functions.setIdentityDisclosureOperations(
             policy_id, operations
-        ).build_transaction({
-            "from": self.account["address"],
-            "nonce": self._next_nonce(),
-        })
+        ).build_transaction(
+            {
+                "from": self.account["address"],
+                "nonce": self._next_nonce(),
+            }
+        )
         tx_signed = self.web3.eth.account.sign_transaction(
             tx_built, self.account["private_key"]
         )
         tx_hash = self.web3.eth.send_raw_transaction(tx_signed.rawTransaction)
-        return self.web3.eth.wait_for_transaction_receipt(tx_hash)
-
+        return self._wait_for_receipt(tx_hash, "set_identity_disclosure_operations")
 
     def add_bucket(
         self,
@@ -350,49 +357,50 @@ class Nectar:
         print("adding new bucket...")
         if not isinstance(policy_ids, list) or len(policy_ids) == 0:
             raise ValueError("policy_ids must be a non-empty list")
-        
+
         if not isinstance(use_allowlists, list):
             raise TypeError("use_allowlists must be a list of booleans")
         for flag in use_allowlists:
             if not isinstance(flag, bool):
                 raise TypeError(f"Invalid use_allowlists element: {flag}, must be bool")
-        
+
         if not isinstance(data_format, str) or not data_format.strip():
             raise ValueError("data_format must be a non-empty string")
 
         allowed_formats = ["std1"]
         if data_format not in allowed_formats:
-            raise ValueError(f"Invalid data_format: {data_format}, must be one of {allowed_formats}")
+            raise ValueError(
+                f"Invalid data_format: {data_format}, must be one of {allowed_formats}"
+            )
 
         if not isinstance(node_address, str) or not node_address.strip():
             raise ValueError("node_address must be a non-empty string")
-        
+
         if len(use_allowlists) != len(policy_ids):
             raise ValueError(
                 f"use_allowlists length ({len(use_allowlists)}) must equal policy_ids length ({len(policy_ids)})"
             )
-        
+
         bucket_id = secrets.randbits(256)
-        print(f'use_allowlists =====>{use_allowlists}')
+        print(f"use_allowlists =====>{use_allowlists}")
         tx_built = self.EoaBond.functions.addBucket(
-            bucket_id, policy_ids,use_allowlists, data_format, node_address
+            bucket_id, policy_ids, use_allowlists, data_format, node_address
         ).build_transaction(
             {
                 "from": self.account["address"],
                 "nonce": self._next_nonce(),
             }
         )
-        
+
         tx_signed = self.web3.eth.account.sign_transaction(
             tx_built, self.account["private_key"]
         )
         tx_hash = self.web3.eth.send_raw_transaction(tx_signed.rawTransaction)
-        receipt = self.web3.eth.wait_for_transaction_receipt(tx_hash)
+        receipt = self._wait_for_receipt(tx_hash, "add_bucket")
         if receipt.status != 1:
             raise RuntimeError(f"add_bucket transaction reverted: {tx_hash.hex()}")
         print("adding new bucket - done")
         return bucket_id
-
 
     def read_bucket(self, bucket_id: int) -> dict:
         """Fetches a bucket from the blockchain"""
@@ -422,7 +430,8 @@ class Nectar:
             tx_built, self.account["private_key"]
         )
         tx_hash = self.web3.eth.send_raw_transaction(tx_signed.rawTransaction)
-        return self.web3.eth.wait_for_transaction_receipt(tx_hash)
+        return self._wait_for_receipt(tx_hash, "deactivate_policy")
+
     def _decode_decrypted_result(self, decrypted):
         if isinstance(decrypted, (bytes, bytearray)):
             raw = bytes(decrypted)
