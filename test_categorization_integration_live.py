@@ -19,7 +19,14 @@ def make_count_func():
     return _count_func
 
 
-def ensure_role(web3: Web3, user_role, admin_address: str, admin_private_key: str, target: str, role_name: str) -> None:
+def ensure_role(
+    web3: Web3,
+    user_role,
+    admin_address: str,
+    admin_private_key: str,
+    target: str,
+    role_name: str,
+) -> None:
     current_role = user_role.functions.getUserRole(target).call()
     if current_role == role_name:
         return
@@ -39,7 +46,9 @@ def ensure_role(web3: Web3, user_role, admin_address: str, admin_private_key: st
 
     current_role = user_role.functions.getUserRole(target).call()
     if current_role != role_name:
-        raise RuntimeError(f"Role assignment failed: expected {role_name}, got {current_role}")
+        raise RuntimeError(
+            f"Role assignment failed: expected {role_name}, got {current_role}"
+        )
 
 
 @unittest.skipUnless(
@@ -132,6 +141,11 @@ class TestCategorizationIntegrationLive(unittest.TestCase):
             aggregate_type="count",
         )
 
+        print(
+            "\n[Categorized output - full consent]\n"
+            + json.dumps(result, indent=2, sort_keys=True)
+        )
+
         bucket_key = f"bucket_{bucket_id}"
         self.assertEqual(result["categorizedByDO"], True)
         self.assertIn(bucket_key, result["results"])
@@ -162,6 +176,11 @@ class TestCategorizationIntegrationLive(unittest.TestCase):
             policy_indexes=[0],
             categorize_by_do=True,
             aggregate_type="count",
+        )
+
+        print(
+            "\n[Categorized output - partial consent]\n"
+            + json.dumps(result, indent=2, sort_keys=True)
         )
 
         bucket_key = f"bucket_{bucket_id}"
@@ -225,6 +244,10 @@ class TestCategorizationIntegrationLive(unittest.TestCase):
             policy_indexes=[0],
             categorize_by_do=False,
             aggregate_type=None,
+        )
+        print(
+            "\n[Output - no categorization]\n"
+            + json.dumps(result, indent=2, sort_keys=True)
         )
         self.assertFalse(isinstance(result, dict) and "categorizedByDO" in result)
 
