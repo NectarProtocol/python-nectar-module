@@ -199,13 +199,27 @@ class NectarClient:
                 self.account["address"], query_index
             ).call()
             time.sleep(5)
-            if query[2] != "":
-                jdata = json.loads(query[2])
-                if jdata.startswith("Something went wrong"):
-                    raise RuntimeError(f"Query failed: {jdata}")
-                result = json.loads(query[2])
+            raw = query[2]
+            if raw == "":
+                continue
 
-        if result.startswith("Something went wrong"):
+            parsed = raw
+            if isinstance(raw, (bytes, bytearray)):
+                parsed = raw.decode("utf-8", errors="ignore")
+
+            if isinstance(parsed, str):
+                try:
+                    parsed = json.loads(parsed)
+                except Exception:
+                    # Some backend paths write plain text errors (not JSON encoded).
+                    parsed = parsed
+
+            if isinstance(parsed, str) and parsed.startswith("Something went wrong"):
+                raise RuntimeError(f"Query failed: {parsed}")
+
+            result = parsed
+
+        if isinstance(result, str) and result.startswith("Something went wrong"):
             raise RuntimeError(f"Query failed: {result}")
         else:
             existing_result = encryption.hybrid_decrypt_v1(self, result)
